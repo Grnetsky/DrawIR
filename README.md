@@ -2,6 +2,12 @@
 
 DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、Visio 解析器只生成矢量数据，Canvas 等后端各自实现渲染接口；核心库不包含编辑器、Pen、原生图形或 DOM 对象。
 
+## 文档
+
+- [IR 中间描述完整教程](./docs/ir-spec.md)
+- [解析方实现指南](./docs/parser-guide.md)
+- [渲染方实现指南](./docs/renderer-guide.md)
+
 ## 包结构
 
 `packages/parser` 和 `packages/render` 只是分类目录，本身不是包。实际包如下：
