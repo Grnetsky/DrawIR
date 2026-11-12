@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="DrawIR 矢量中间描述语言演示" />
+    <title>DrawIR · 矢量渲染演示</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div>
+            <strong>DrawIR</strong>
+            <span>VECTOR INTERMEDIATE REPRESENTATION</span>
+          </div>
+        </div>
+        <a href="https://github.com" aria-label="项目主页" onclick="return false">Monorepo Demo</a>
+      </header>
+
+      <main class="main">
+        <aside class="sidebar">
+          <section>
+            <p class="eyebrow">开始体验</p>
+            <h1>一种 IR，多种来源与后端</h1>
+            <p class="intro">导入图纸后，解析器会把它转换为统一的 path、text、hatch 和 ref 指令。</p>
+            <input id="file-input" type="file" accept=".dxf,.vsdx" hidden />
+            <button id="open-file" class="button primary" type="button">打开 DXF / VSDX</button>
+            <button id="load-sample" class="button secondary" type="button">加载内置示例</button>
+          </section>
+
+          <section class="document-panel">
+            <p class="eyebrow">当前文档</p>
+            <dl>
+              <div><dt>来源</dt><dd id="source">内置示例</dd></div>
+              <div><dt>矢量项</dt><dd id="item-count">0</dd></div>
+              <div><dt>共享定义</dt><dd id="vector-count">0</dd></div>
+              <div><dt>解析耗时</dt><dd id="parse-time">—</dd></div>
+            </dl>
+          </section>
+
+          <section class="format-panel">
+            <p class="eyebrow">工作流</p>
+            <div class="flow"><span>DXF / VSDX</span><b>→</b><span>Vector IR</span><b>→</b><span>Canvas</span></div>
+            <p>核心模型不依赖 DOM，也不包含任何编辑器图元。</p>
+          </section>
+        </aside>
+
+        <section class="workspace">
+          <div class="toolbar">
+            <div class="file-meta">
+              <span class="status-dot"></span>
+              <strong id="file-name">sample.drawir</strong>
+            </div>
+            <div class="toolbar-actions">
+              <button id="zoom-out" type="button" title="缩小">−</button>
+              <button id="zoom-reset" type="button" title="实际大小">100%</button>
+              <button id="zoom-in" type="button" title="放大">+</button>
+              <span class="separator"></span>
+              <button id="fit" type="button">适应画布</button>
+            </div>
+          </div>
+          <div id="drop-zone" class="canvas-shell">
+            <canvas id="canvas"></canvas>
+            <div class="canvas-badge">CANVAS 2D</div>
+            <div id="drop-message" class="drop-message">释放文件以打开图纸</div>
+          </div>
+          <footer class="statusbar">
+            <span id="status">就绪</span>
+            <span>滚轮缩放 · 拖动平移 · 支持文件拖放</span>
+          </footer>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

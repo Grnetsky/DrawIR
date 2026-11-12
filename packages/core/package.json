@@ -1,0 +1,8 @@
+{
+  "name": "@drawir/core",
+  "version": "1.0.0",
+  "description": "DrawIR vector intermediate representation and geometry utilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT"
+}

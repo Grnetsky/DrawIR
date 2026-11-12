@@ -1,0 +1,11 @@
+{
+  "name": "@drawir/render-core",
+  "version": "1.0.0",
+  "description": "Platform-independent renderer contract for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*"
+  }
+}

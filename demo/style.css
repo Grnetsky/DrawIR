@@ -1,0 +1,78 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #172033;
+  background: #edf1f6;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.header {
+  height: 68px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  background: #14233a;
+  border-bottom: 1px solid #29384e;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand strong { display: block; font-size: 21px; letter-spacing: -.5px; }
+.brand div > span { display: block; margin-top: 2px; color: #8f9db2; font-size: 8px; letter-spacing: 1.45px; }
+.brand-mark { position: relative; display: block; width: 34px; height: 34px; }
+.brand-mark i { position: absolute; width: 21px; height: 21px; border: 2px solid #65d1ba; transform: rotate(30deg); }
+.brand-mark i:nth-child(2) { left: 8px; top: 6px; border-color: #68a7ff; }
+.brand-mark i:nth-child(3) { left: 3px; top: 11px; border-color: #fff; opacity: .65; }
+.header > a { color: #a9b7c9; font-size: 12px; text-decoration: none; }
+.main { flex: 1; display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 0; }
+.sidebar { padding: 28px 24px; background: #fff; border-right: 1px solid #dce3eb; }
+.sidebar section + section { margin-top: 30px; padding-top: 25px; border-top: 1px solid #edf0f4; }
+.eyebrow { margin: 0 0 10px; color: #75839a; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+h1 { margin: 0; font-size: 22px; line-height: 1.45; letter-spacing: -.4px; }
+.intro { margin: 12px 0 22px; color: #6d7b90; font-size: 12px; line-height: 1.8; }
+.button { width: 100%; height: 39px; margin-top: 9px; border-radius: 6px; font-size: 12px; font-weight: 600; transition: .15s; }
+.button.primary { color: #fff; background: #2372d8; border: 1px solid #2372d8; }
+.button.primary:hover { background: #195fac; }
+.button.secondary { color: #35445a; background: #fff; border: 1px solid #d8dfe8; }
+.button.secondary:hover { border-color: #2372d8; color: #2372d8; }
+dl { margin: 0; }
+dl > div { display: flex; justify-content: space-between; padding: 7px 0; font-size: 12px; }
+dt { color: #8591a3; }
+dd { max-width: 155px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.flow { display: flex; align-items: center; justify-content: space-between; color: #33547e; font-size: 10px; font-weight: 700; }
+.flow b { color: #a4afbd; font-weight: 400; }
+.format-panel section { color: #8a96a8; }
+.format-panel p:last-child { margin: 12px 0 0; color: #8a96a8; font-size: 11px; line-height: 1.7; }
+.workspace { min-width: 0; display: flex; flex-direction: column; padding: 18px; }
+.toolbar { height: 46px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #dce3eb; border-radius: 8px 8px 0 0; }
+.file-meta { min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.file-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #28ad86; box-shadow: 0 0 0 3px #e2f6ef; }
+.toolbar-actions { display: flex; align-items: center; gap: 4px; }
+.toolbar button { min-width: 29px; height: 27px; padding: 0 8px; color: #536176; background: transparent; border: 1px solid transparent; border-radius: 4px; font-size: 11px; }
+.toolbar button:hover { color: #2372d8; background: #edf5ff; border-color: #d4e6fb; }
+.separator { width: 1px; height: 16px; margin: 0 5px; background: #e3e8ee; }
+.canvas-shell { position: relative; flex: 1; min-height: 420px; overflow: hidden; background: #fff; border: 1px solid #dce3eb; border-top: 0; }
+#canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#canvas.dragging { cursor: grabbing; }
+.canvas-badge { position: absolute; right: 13px; bottom: 12px; padding: 4px 7px; color: #8491a3; background: #ffffffd9; border: 1px solid #e5eaf0; border-radius: 4px; font-size: 8px; letter-spacing: 1px; pointer-events: none; }
+.drop-message { position: absolute; inset: 20px; display: none; align-items: center; justify-content: center; color: #2372d8; background: #edf5ffed; border: 2px dashed #68a7ff; border-radius: 8px; font-size: 16px; font-weight: 600; pointer-events: none; }
+.canvas-shell.dragover .drop-message { display: flex; }
+.statusbar { display: flex; justify-content: space-between; padding: 9px 2px 0; color: #8491a3; font-size: 10px; }
+#status { color: #526177; }
+#status.error { color: #c73e43; }
+
+@media (max-width: 760px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { padding: 18px; border-right: 0; border-bottom: 1px solid #dce3eb; }
+  .sidebar section:not(:first-child) { display: none; }
+  .intro { margin-bottom: 10px; }
+  .button { width: calc(50% - 6px); margin: 4px 3px; }
+  .workspace { height: 620px; padding: 10px; }
+  .canvas-shell { min-height: 0; }
+  .statusbar span:last-child { display: none; }
+}

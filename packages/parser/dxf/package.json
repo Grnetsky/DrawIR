@@ -1,0 +1,12 @@
+{
+  "name": "@drawir/parser-dxf",
+  "version": "1.0.0",
+  "description": "DXF parser for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*",
+    "dxf-json": "^0.14.1"
+  }
+}

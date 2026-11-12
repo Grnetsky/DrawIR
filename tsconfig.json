@@ -1,12 +1,16 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
+    "composite": false,
+    "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/parser/dxf" },
+    { "path": "packages/parser/visio" },
+    { "path": "packages/render/core" },
+    { "path": "packages/render/canvas" }
+  ]
 }

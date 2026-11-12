@@ -1,0 +1,13 @@
+{
+  "name": "@drawir/parser-visio",
+  "version": "1.0.0",
+  "description": "Visio VSDX parser for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*",
+    "fast-xml-parser": "^4.5.7",
+    "fflate": "^0.8.3"
+  }
+}

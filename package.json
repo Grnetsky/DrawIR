@@ -1,14 +1,25 @@
 {
-  "name": "${PROJECT_NAME}",
+  "name": "drawir",
   "version": "1.0.0",
-  "description": "",
+  "description": "CAD/Visio intermediate representation and pluggable renderers",
+  "private": true,
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas && tsc -p tsconfig.json",
+    "dev": "vite demo --host 0.0.0.0",
+    "demo:build": "vite build demo",
+    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
   },
-  "dependencies": {},
+  "dependencies": {
+    "@drawir/core": "workspace:*",
+    "@drawir/parser-dxf": "workspace:*",
+    "@drawir/parser-visio": "workspace:*",
+    "@drawir/render-canvas": "workspace:*",
+    "@drawir/render-core": "workspace:*"
+  },
   "devDependencies": {
-    "typescript": "^5.5.3"
-  },
-  "private": true
+    "typescript": "^5.5.3",
+    "vite": "^8.3.8"
+  }
 }
