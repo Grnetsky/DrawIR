@@ -11,6 +11,7 @@
     { "path": "packages/parser/dxf" },
     { "path": "packages/parser/visio" },
     { "path": "packages/render/core" },
-    { "path": "packages/render/canvas" }
+    { "path": "packages/render/canvas" },
+    { "path": "packages/render/svg" }
   ]
 }

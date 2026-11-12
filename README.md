@@ -11,6 +11,7 @@ DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、
 - `@drawir/parser-visio`（`packages/parser/visio`）：VSDX → Vector IR。
 - `@drawir/render-core`（`packages/render/core`）：平台无关的 `Renderer` 接口与后端注册表。
 - `@drawir/render-canvas`（`packages/render/canvas`）：HTML Canvas / OffscreenCanvas 的矢量指令解释器。
+- `@drawir/render-svg`（`packages/render/svg`）：SVG 字符串导出与页面渲染，支持 path/text/hatch/ref。
 
 根包 `drawir` 统一导出以上 API，也可以只使用子包。
 
@@ -52,7 +53,7 @@ pnpm build
 pnpm dev
 ```
 
-打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX 文件，以及缩放、平移和适应画布。
+打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX 文件、Canvas / SVG 后端切换，以及缩放、平移和适应画布。
 
 ```bash
 pnpm demo:build
@@ -124,28 +125,29 @@ const doc: VectorDocument = {
 new CanvasRenderer(canvas).render(doc, { fit: true });
 ```
 
-## 实现其他渲染后端
-
-后端只需要解释 `VectorDocument`，不需要了解 DXF、Visio 或 Canvas：
+## SVG 渲染与导出
 
 ```ts
-import type { Renderer, RenderOptions, VectorDocument } from 'drawir';
+import { renderSvg, SvgRenderer } from 'drawir';
 
-class SvgRenderer implements Renderer {
-  readonly name = 'svg';
+// 服务端或 Worker：直接返回完整 SVG 字符串，不依赖 DOM。
+const svg = renderSvg(doc, { width: 960, height: 600, fit: true });
 
-  render(doc: VectorDocument, options?: RenderOptions) {
-    // 在 SVG 平台中实现 path/text/hatch/ref。
-  }
-}
+// 页面：把 SVG 写入目标元素，同时返回字符串。
+const renderer = new SvgRenderer(document.querySelector('#svg-host')!);
+renderer.render(doc, { fit: true });
 ```
+
+## 实现其他渲染后端
+
+后端只需要解释 `VectorDocument`，不需要了解 DXF、Visio、Canvas 或 SVG。`Renderer<Options, Result>` 的第二个泛型用于声明后端返回值。
 
 通过注册表切换后端：
 
 ```ts
 const renderers = new RendererRegistry()
   .register('canvas', () => new CanvasRenderer(canvas))
-  .register('svg', () => new SvgRenderer());
+  .register('svg', () => new SvgRenderer(svgHost));
 
 const renderer = renderers.create('canvas');
 await renderer.render(doc, { fit: true });

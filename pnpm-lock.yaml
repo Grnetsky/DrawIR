@@ -23,6 +23,9 @@ importers:
       '@drawir/render-core':
         specifier: workspace:*
         version: link:packages/render/core
+      '@drawir/render-svg':
+        specifier: workspace:*
+        version: link:packages/render/svg
     devDependencies:
       typescript:
         specifier: ^5.5.3
@@ -68,6 +71,15 @@ importers:
       '@drawir/core':
         specifier: workspace:*
         version: link:../../core
+
+  packages/render/svg:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@drawir/render-core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

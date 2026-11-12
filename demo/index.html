@@ -55,6 +55,11 @@
               <strong id="file-name">sample.drawir</strong>
             </div>
             <div class="toolbar-actions">
+              <div class="backend-switch" aria-label="渲染后端">
+                <button id="backend-canvas" class="active" type="button">Canvas</button>
+                <button id="backend-svg" type="button">SVG</button>
+              </div>
+              <span class="separator"></span>
               <button id="zoom-out" type="button" title="缩小">−</button>
               <button id="zoom-reset" type="button" title="实际大小">100%</button>
               <button id="zoom-in" type="button" title="放大">+</button>
@@ -64,7 +69,8 @@
           </div>
           <div id="drop-zone" class="canvas-shell">
             <canvas id="canvas"></canvas>
-            <div class="canvas-badge">CANVAS 2D</div>
+            <div id="svg-host" class="svg-host" hidden></div>
+            <div id="backend-badge" class="canvas-badge">CANVAS 2D</div>
             <div id="drop-message" class="drop-message">释放文件以打开图纸</div>
           </div>
           <footer class="statusbar">

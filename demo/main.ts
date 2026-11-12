@@ -1,5 +1,6 @@
 import {
   CanvasRenderer,
+  SvgRenderer,
   VectorPathBuilder,
   createGeom,
   fitViewport,
@@ -67,21 +68,42 @@ function createSample(): VectorDocument {
 }
 
 const canvas = element<HTMLCanvasElement>('canvas');
+const svgHost = element<HTMLDivElement>('svg-host');
 const fileInput = element<HTMLInputElement>('file-input');
 const dropZone = element<HTMLDivElement>('drop-zone');
-const renderer = new CanvasRenderer(canvas, { autoResize: true });
+const canvasRenderer = new CanvasRenderer(canvas, { autoResize: true });
+const svgRenderer = new SvgRenderer(svgHost);
 let currentDocument = createSample();
 let currentView: Viewport | undefined;
+let backend: 'canvas' | 'svg' = 'canvas';
 let dragging = false;
 let dragX = 0;
 let dragY = 0;
 
 function draw(fit = false) {
   if (fit || !currentView) {
-    currentView = fitViewport(currentDocument, canvas.clientWidth, canvas.clientHeight, 30);
+    currentView = fitViewport(currentDocument, dropZone.clientWidth, dropZone.clientHeight, 30);
   }
-  renderer.render(currentDocument, { viewport: currentView });
+  if (backend === 'canvas') {
+    canvasRenderer.render(currentDocument, { viewport: currentView });
+  } else {
+    svgRenderer.render(currentDocument, {
+      viewport: currentView,
+      width: dropZone.clientWidth,
+      height: dropZone.clientHeight,
+    });
+  }
   element('zoom-reset').textContent = `${Math.round(currentView.scale * 100)}%`;
+}
+
+function setBackend(value: 'canvas' | 'svg') {
+  backend = value;
+  canvas.hidden = value !== 'canvas';
+  svgHost.hidden = value !== 'svg';
+  element('backend-canvas').classList.toggle('active', value === 'canvas');
+  element('backend-svg').classList.toggle('active', value === 'svg');
+  element('backend-badge').textContent = value === 'canvas' ? 'CANVAS 2D' : 'SVG VECTOR';
+  draw();
 }
 
 function updateInfo(source: string, fileName: string) {
@@ -123,7 +145,7 @@ async function openFile(file: File) {
   }
 }
 
-function zoomAt(factor: number, x = canvas.clientWidth / 2, y = canvas.clientHeight / 2) {
+function zoomAt(factor: number, x = dropZone.clientWidth / 2, y = dropZone.clientHeight / 2) {
   if (!currentView) return;
   const scale = Math.max(0.02, Math.min(100, currentView.scale * factor));
   const worldX = (x - currentView.x) / currentView.scale;
@@ -153,20 +175,22 @@ element('zoom-reset').addEventListener('click', () => {
   draw();
 });
 element('fit').addEventListener('click', () => draw(true));
+element('backend-canvas').addEventListener('click', () => setBackend('canvas'));
+element('backend-svg').addEventListener('click', () => setBackend('svg'));
 
-canvas.addEventListener('wheel', (event) => {
+dropZone.addEventListener('wheel', (event) => {
   event.preventDefault();
-  const bounds = canvas.getBoundingClientRect();
+  const bounds = dropZone.getBoundingClientRect();
   zoomAt(event.deltaY > 0 ? 0.9 : 1.1, event.clientX - bounds.left, event.clientY - bounds.top);
 }, { passive: false });
-canvas.addEventListener('pointerdown', (event) => {
+dropZone.addEventListener('pointerdown', (event) => {
   dragging = true;
   dragX = event.clientX;
   dragY = event.clientY;
-  canvas.classList.add('dragging');
-  canvas.setPointerCapture(event.pointerId);
+  dropZone.classList.add('dragging');
+  dropZone.setPointerCapture(event.pointerId);
 });
-canvas.addEventListener('pointermove', (event) => {
+dropZone.addEventListener('pointermove', (event) => {
   if (!dragging || !currentView) return;
   currentView.x += event.clientX - dragX;
   currentView.y += event.clientY - dragY;
@@ -176,10 +200,10 @@ canvas.addEventListener('pointermove', (event) => {
 });
 const stopDragging = () => {
   dragging = false;
-  canvas.classList.remove('dragging');
+  dropZone.classList.remove('dragging');
 };
-canvas.addEventListener('pointerup', stopDragging);
-canvas.addEventListener('pointercancel', stopDragging);
+dropZone.addEventListener('pointerup', stopDragging);
+dropZone.addEventListener('pointercancel', stopDragging);
 
 for (const eventName of ['dragenter', 'dragover']) {
   dropZone.addEventListener(eventName, (event) => {
@@ -197,6 +221,6 @@ dropZone.addEventListener('drop', (event) => {
   if (file) void openFile(file);
 });
 
-new ResizeObserver(() => draw()).observe(canvas);
+new ResizeObserver(() => draw()).observe(dropZone);
 updateInfo('内置示例', 'sample.drawir');
 requestAnimationFrame(() => draw(true));

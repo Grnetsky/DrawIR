@@ -18,14 +18,14 @@ export interface RenderOptions {
   clear?: boolean;
 }
 
-/** 所有后端共享的渲染契约。后端可在 options 中扩展自己的配置。 */
-export interface Renderer<Options extends RenderOptions = RenderOptions> {
+/** 所有后端共享的渲染契约；Result 可表示绘制完成、SVG 字符串等返回值。 */
+export interface Renderer<Options extends RenderOptions = RenderOptions, Result = void | Promise<void>> {
   readonly name: string;
-  render(document: VectorDocument, options?: Options): void | Promise<void>;
+  render(document: VectorDocument, options?: Options): Result;
   destroy?(): void;
 }
 
-export type RendererFactory = () => Renderer<any>;
+export type RendererFactory = () => Renderer<any, any>;
 
 /** 按名称管理后端，便于应用在不改业务代码的情况下切换渲染器。 */
 export class RendererRegistry {
@@ -41,15 +41,15 @@ export class RendererRegistry {
     return this.factories.has(name);
   }
 
-  create(name: string): Renderer<any> {
+  create(name: string): Renderer<any, any> {
     const factory = this.factories.get(name);
     if (!factory) throw new Error(`Unknown renderer: ${name}`);
     return factory();
   }
 }
 
-export function renderDocument<Options extends RenderOptions>(
-  renderer: Renderer<Options>,
+export function renderDocument<Options extends RenderOptions, Result>(
+  renderer: Renderer<Options, Result>,
   document: VectorDocument,
   options?: Options,
 ) {

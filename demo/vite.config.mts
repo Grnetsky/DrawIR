@@ -11,6 +11,7 @@ export default defineConfig({
       '@drawir/parser-visio': packageSource('parser/visio/src/index.ts'),
       '@drawir/render-core': packageSource('render/core/src/index.ts'),
       '@drawir/render-canvas': packageSource('render/canvas/src/index.ts'),
+      '@drawir/render-svg': packageSource('render/svg/src/index.ts'),
     },
   },
   build: {

@@ -6,17 +6,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas && tsc -p tsconfig.json",
+    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas packages/render/svg && tsc -p tsconfig.json",
     "dev": "vite demo --host 0.0.0.0",
     "demo:build": "vite build demo",
-    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas packages/render/svg --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@drawir/core": "workspace:*",
     "@drawir/parser-dxf": "workspace:*",
     "@drawir/parser-visio": "workspace:*",
     "@drawir/render-canvas": "workspace:*",
-    "@drawir/render-core": "workspace:*"
+    "@drawir/render-core": "workspace:*",
+    "@drawir/render-svg": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.3",
