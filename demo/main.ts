@@ -4,9 +4,12 @@ import {
   VectorPathBuilder,
   createGeom,
   fitViewport,
+  parseDrawio,
   parseDxf,
+  parseFigma,
   parseVisio,
   pathItem,
+  Meta2dRenderer,
 } from '../src';
 import type { VectorDocument, VectorItem, Viewport } from '../src';
 
@@ -75,7 +78,25 @@ const canvasRenderer = new CanvasRenderer(canvas, { autoResize: true });
 const svgRenderer = new SvgRenderer(svgHost);
 let currentDocument = createSample();
 let currentView: Viewport | undefined;
-let backend: 'canvas' | 'svg' = 'canvas';
+type Backend = 'canvas' | 'svg' | 'meta2d';
+const meta2dHost = element<HTMLDivElement>('meta2d-host');
+let backend: Backend = 'canvas';
+let meta2dRenderer: Meta2dRenderer | undefined;
+/** meta2d 中当前打开的文档：文档变化时重新打开，否则只同步视口 */
+let meta2dDocument: VectorDocument | undefined;
+
+/** meta2d 是可交互的图纸（平移、缩放、选中由 meta2d 自己处理），按需加载 */
+async function ensureMeta2d() {
+  if (meta2dRenderer) return meta2dRenderer;
+  const { Meta2d } = await import('@meta2d/core');
+  meta2dHost.hidden = false;
+  // meta2d 会把容器改成 position: relative，所以挂在内层的满尺寸 div 上，外层保持绝对定位
+  const mount = document.createElement('div');
+  mount.style.cssText = 'width: 100%; height: 100%';
+  meta2dHost.appendChild(mount);
+  meta2dRenderer = new Meta2dRenderer(new Meta2d(mount) as any);
+  return meta2dRenderer;
+}
 let dragging = false;
 let dragX = 0;
 let dragY = 0;
@@ -84,7 +105,19 @@ function draw(fit = false) {
   if (fit || !currentView) {
     currentView = fitViewport(currentDocument, dropZone.clientWidth, dropZone.clientHeight, 30);
   }
-  if (backend === 'canvas') {
+  if (backend === 'meta2d') {
+    const view = currentView;
+    void ensureMeta2d().then(async (r) => {
+      if (backend !== 'meta2d') return;
+      if (meta2dDocument !== currentDocument) {
+        meta2dDocument = currentDocument;
+        await r.render(currentDocument, { viewport: view, maxPens: 5000 });
+      } else {
+        r.setViewport(view);
+        r.meta2d.render();
+      }
+    }).catch(showError);
+  } else if (backend === 'canvas') {
     canvasRenderer.render(currentDocument, { viewport: currentView });
   } else {
     svgRenderer.render(currentDocument, {
@@ -96,13 +129,15 @@ function draw(fit = false) {
   element('zoom-reset').textContent = `${Math.round(currentView.scale * 100)}%`;
 }
 
-function setBackend(value: 'canvas' | 'svg') {
+function setBackend(value: Backend) {
+  // 从 meta2d 切走时沿用它当前的视口
+  if (backend === 'meta2d' && meta2dRenderer) currentView = meta2dRenderer.getViewport();
   backend = value;
   canvas.hidden = value !== 'canvas';
   svgHost.hidden = value !== 'svg';
-  element('backend-canvas').classList.toggle('active', value === 'canvas');
-  element('backend-svg').classList.toggle('active', value === 'svg');
-  element('backend-badge').textContent = value === 'canvas' ? 'CANVAS 2D' : 'SVG VECTOR';
+  meta2dHost.hidden = value !== 'meta2d';
+  for (const b of ['canvas', 'svg', 'meta2d']) element(`backend-${b}`).classList.toggle('active', value === b);
+  element('backend-badge').textContent = value === 'canvas' ? 'CANVAS 2D' : value === 'svg' ? 'SVG VECTOR' : 'META2D 1.x';
   draw();
 }
 
@@ -134,8 +169,14 @@ async function openFile(file: File) {
     } else if (extension === 'vsdx') {
       currentDocument = await parseVisio(bytes, { pageBorder: true });
       updateInfo('Visio VSDX', file.name);
+    } else if (extension === 'fig') {
+      currentDocument = await parseFigma(bytes, { pageBorder: true });
+      updateInfo('Figma', file.name);
+    } else if (['drawio', 'dio', 'xml', 'svg', 'png'].includes(extension || '')) {
+      currentDocument = await parseDrawio(bytes, { pageBorder: true });
+      updateInfo('draw.io', file.name);
     } else {
-      throw new Error('请选择 .dxf 或 .vsdx 文件');
+      throw new Error('请选择 .dxf、.vsdx、.drawio 或 .fig 文件');
     }
     const errors = currentDocument.stats?.errors?.length || 0;
     status.textContent = errors ? `已打开，${errors} 条内容未能解析` : '解析完成';
@@ -146,6 +187,7 @@ async function openFile(file: File) {
 }
 
 function zoomAt(factor: number, x = dropZone.clientWidth / 2, y = dropZone.clientHeight / 2) {
+  if (backend === 'meta2d' && meta2dRenderer) currentView = meta2dRenderer.getViewport();
   if (!currentView) return;
   const scale = Math.max(0.02, Math.min(100, currentView.scale * factor));
   const worldX = (x - currentView.x) / currentView.scale;
@@ -177,13 +219,16 @@ element('zoom-reset').addEventListener('click', () => {
 element('fit').addEventListener('click', () => draw(true));
 element('backend-canvas').addEventListener('click', () => setBackend('canvas'));
 element('backend-svg').addEventListener('click', () => setBackend('svg'));
+element('backend-meta2d').addEventListener('click', () => setBackend('meta2d'));
 
 dropZone.addEventListener('wheel', (event) => {
+  if (backend === 'meta2d') return;
   event.preventDefault();
   const bounds = dropZone.getBoundingClientRect();
   zoomAt(event.deltaY > 0 ? 0.9 : 1.1, event.clientX - bounds.left, event.clientY - bounds.top);
 }, { passive: false });
 dropZone.addEventListener('pointerdown', (event) => {
+  if (backend === 'meta2d') return;
   dragging = true;
   dragX = event.clientX;
   dragY = event.clientY;

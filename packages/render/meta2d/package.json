@@ -1,0 +1,18 @@
+{
+  "name": "@drawir/render-meta2d",
+  "version": "1.0.0",
+  "description": "meta2d.js 1.x renderer for DrawIR: Vector IR → meta2d vector pens",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*",
+    "@drawir/render-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@meta2d/core": "^1.1.35"
+  },
+  "devDependencies": {
+    "@meta2d/core": "~1.1.35"
+  }
+}

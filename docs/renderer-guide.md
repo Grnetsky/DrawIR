@@ -6,6 +6,7 @@ IR 字段的完整语义见 [IR 教程](./ir-spec.md)。参考实现：
 
 - `packages/render/canvas`（`@drawir/render-canvas`）——**语义基准实现**，有疑问时以它为准
 - `packages/render/svg`（`@drawir/render-svg`）——输出字符串的后端示例
+- `packages/render/meta2d`（`@drawir/render-meta2d`）——把 IR 交给外部引擎（meta2d.js 1.x）的后端示例：转换为引擎的数据模型，而非逐条绘制
 
 ---
 

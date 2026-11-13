@@ -6,20 +6,24 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas packages/render/svg && tsc -p tsconfig.json",
+    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/render/core packages/render/canvas packages/render/svg packages/render/meta2d && tsc -p tsconfig.json",
     "dev": "vite demo --host 0.0.0.0",
     "demo:build": "vite build demo",
-    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/render/core packages/render/canvas packages/render/svg --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/render/core packages/render/canvas packages/render/svg packages/render/meta2d --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@drawir/core": "workspace:*",
+    "@drawir/parser-drawio": "workspace:*",
     "@drawir/parser-dxf": "workspace:*",
+    "@drawir/parser-figma": "workspace:*",
     "@drawir/parser-visio": "workspace:*",
     "@drawir/render-canvas": "workspace:*",
     "@drawir/render-core": "workspace:*",
+    "@drawir/render-meta2d": "workspace:*",
     "@drawir/render-svg": "workspace:*"
   },
   "devDependencies": {
+    "@meta2d/core": "~1.1.35",
     "typescript": "^5.5.3",
     "vite": "^8.3.8"
   }

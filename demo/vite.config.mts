@@ -9,9 +9,12 @@ export default defineConfig({
       '@drawir/core': packageSource('core/src/index.ts'),
       '@drawir/parser-dxf': packageSource('parser/dxf/src/index.ts'),
       '@drawir/parser-visio': packageSource('parser/visio/src/index.ts'),
+      '@drawir/parser-drawio': packageSource('parser/drawio/src/index.ts'),
+      '@drawir/parser-figma': packageSource('parser/figma/src/index.ts'),
       '@drawir/render-core': packageSource('render/core/src/index.ts'),
       '@drawir/render-canvas': packageSource('render/canvas/src/index.ts'),
       '@drawir/render-svg': packageSource('render/svg/src/index.ts'),
+      '@drawir/render-meta2d': packageSource('render/meta2d/src/index.ts'),
     },
   },
   build: {

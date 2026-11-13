@@ -6,6 +6,8 @@ IR 字段的完整语义见 [IR 教程](./ir-spec.md)。参考实现：
 
 - `packages/parser/dxf`（`@drawir/parser-dxf`）
 - `packages/parser/visio`（`@drawir/parser-visio`）
+- `packages/parser/drawio`（`@drawir/parser-drawio`）
+- `packages/parser/figma`（`@drawir/parser-figma`）
 
 ---
 
@@ -66,6 +68,8 @@ export class XxxToVector {
 | --- | --- | --- | --- |
 | DXF | `parseDxf(input, opts)` | `parseDxfSync(text, opts)` | `DxfToVector` |
 | VSDX | `parseVisio(input, opts)` | `parseVisioSync(bytes, opts)` | `VisioToIR` |
+| draw.io | `parseDrawio(input, opts)` | `parseDrawioSync(textOrBytes, opts)` | `DrawioToIR` |
+| Figma | `parseFigma(input, opts)` | `parseFigmaSync(bytes, opts)` | `FigmaToIR` |
 
 `Blob` 输入用 `await blob.arrayBuffer()` 读取即可，这在浏览器、Worker、Node 18+ 中都可用。
 
