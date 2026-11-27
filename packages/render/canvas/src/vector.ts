@@ -1,12 +1,19 @@
 import {
   ellipseToCubics,
+  invertMatrix,
+  isGradient,
+  isIdentity,
   matrixScale,
   textItemLines,
   VectorGeom,
+  VectorColor,
+  VectorGradient,
   VectorHatchItem,
+  VectorImageItem,
   VectorItem,
   VectorOp,
   VectorOpSize,
+  VectorPaint,
   VectorPathData,
   VectorStyle,
   VectorTextItem,
@@ -41,6 +48,8 @@ interface DrawState {
   documentLw: number;
   tint: boolean;
   depth: number;
+  /** 图片还没加载好：加载完成后回调（由调用方重绘） */
+  wait?: () => void;
 }
 
 const MAX_DEPTH = 24;
@@ -100,11 +109,76 @@ export function traceVectorPath(sink: PathSink, data: VectorPathData, noEllipse 
   }
 }
 
-function resolveColor(color: string | undefined, state: DrawState, fallback: 'fg' | 'none') {
+function resolveColor(color: VectorColor | undefined, state: DrawState, fallback: 'fg' | 'none') {
   if (color === undefined) return fallback === 'fg' ? state.fg : undefined;
   if (color === 'none') return undefined;
   if (color === '$fg' || state.tint) return state.fg;
   return color;
+}
+
+/** 填充 / 描边：渐变原样返回（着色模式下改用前景色），颜色同 resolveColor（与 @meta2d/core vector 一致） */
+function resolvePaint(paint: VectorPaint | undefined, state: DrawState, fallback: 'fg' | 'none') {
+  if (isGradient(paint)) return state.tint ? state.fg : paint;
+  return resolveColor(paint, state, fallback);
+}
+
+/** IR 渐变 → CanvasGradient（渐变空间），按渐变对象缓存 */
+const gradientCache = new WeakMap<VectorGradient, CanvasGradient>();
+
+function canvasGradient(ctx: CanvasContext, g: VectorGradient): CanvasGradient | undefined {
+  let cg = gradientCache.get(g);
+  if (cg) return cg;
+  const ok = (...v: number[]) => v.every(Number.isFinite);
+  if (g.type === 'radial') {
+    const r0 = Math.max(g.r0 || 0, 0);
+    const r1 = Math.max(g.r1 ?? 1, 0);
+    if (!ok(g.x0, g.y0, g.x1, g.y1, r0, r1)) return undefined;
+    cg = ctx.createRadialGradient(g.x0, g.y0, r0, g.x1, g.y1, r1);
+  } else {
+    if (!ok(g.x0, g.y0, g.x1, g.y1)) return undefined;
+    cg = ctx.createLinearGradient(g.x0, g.y0, g.x1, g.y1);
+  }
+  for (const stop of g.stops || []) {
+    try {
+      cg.addColorStop(Math.min(1, Math.max(0, stop.o)), stop.c);
+    } catch {
+      // 无法解析的颜色
+    }
+  }
+  gradientCache.set(g, cg);
+  return cg;
+}
+
+/**
+ * 用 IR 渐变填充 / 描边当前路径。路径已按构建时的变换固定，transform(g.m) 只影响渐变的解释；
+ * 描边线宽、虚线按 m 的缩放反向换算，保持局部坐标中的粗细。
+ */
+function paintGradient(ctx: CanvasContext, g: VectorGradient, fill: boolean, rule?: CanvasFillRule) {
+  const cg = canvasGradient(ctx, g);
+  if (!cg) return;
+  ctx.save();
+  const m = g.m;
+  if (m && !isIdentity(m)) {
+    if (!invertMatrix(m)) {
+      ctx.restore();
+      return;
+    }
+    ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    if (!fill) {
+      const k = matrixScale(m) || 1;
+      ctx.lineWidth /= k;
+      const dash = ctx.getLineDash();
+      dash.length && ctx.setLineDash(dash.map((v) => v / k));
+    }
+  }
+  if (fill) {
+    ctx.fillStyle = cg;
+    ctx.fill(rule);
+  } else {
+    ctx.strokeStyle = cg;
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function setDash(ctx: CanvasContext, dash: number[] | undefined, px: number) {
@@ -137,7 +211,7 @@ function applyStroke(ctx: CanvasContext, style: VectorStyle | undefined, state: 
 }
 
 function drawPath(ctx: CanvasContext, data: VectorPathData, style: VectorStyle | undefined, state: DrawState) {
-  const stroke = style?.lw === '$lw' && state.documentLw === 0 ? undefined : resolveColor(style?.stroke, state, 'fg');
+  const stroke = style?.lw === '$lw' && state.documentLw === 0 ? undefined : resolvePaint(style?.stroke, state, 'fg');
   ctx.save();
   ctx.beginPath();
   traceVectorPath(ctx, data);
@@ -148,16 +222,22 @@ function drawPath(ctx: CanvasContext, data: VectorPathData, style: VectorStyle |
       ctx.fill(style.rule);
     }
   } else {
-    const fill = resolveColor(style?.fill, state, 'none');
-    if (fill) {
+    const fill = resolvePaint(style?.fill, state, 'none');
+    if (isGradient(fill)) {
+      paintGradient(ctx, fill, true, style?.rule);
+    } else if (fill) {
       ctx.fillStyle = fill;
       ctx.fill(style?.rule);
     }
   }
   if (stroke) {
-    ctx.strokeStyle = stroke;
     applyStroke(ctx, style, state);
-    ctx.stroke();
+    if (isGradient(stroke)) {
+      paintGradient(ctx, stroke, false);
+    } else {
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -308,6 +388,106 @@ function drawHatch(ctx: CanvasContext, item: VectorHatchItem, state: DrawState) 
   ctx.restore();
 }
 
+export type VectorImageSource = HTMLImageElement | ImageBitmap;
+
+interface VectorImageEntry {
+  img?: VectorImageSource;
+  failed?: boolean;
+  waiters: Set<() => void>;
+}
+
+const imageCache = new Map<string, VectorImageEntry>();
+
+function loadVectorImage(src: string): Promise<VectorImageSource> {
+  if (typeof Image !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      // data: / blob: 不需要跨域；其它地址按匿名跨域加载，否则画布被污染后不能导出图片
+      /^(data|blob):/i.test(src) || (img.crossOrigin = 'anonymous');
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+  // Worker：没有 Image，用 fetch + createImageBitmap
+  return fetch(src)
+    .then((r) => r.blob())
+    .then((b) => createImageBitmap(b));
+}
+
+/** 取已加载的图片；第一次取时开始加载并返回 undefined，加载完成后调用 wait */
+export function getVectorImage(src: string, wait?: () => void): VectorImageSource | undefined {
+  let entry = imageCache.get(src);
+  if (!entry) {
+    const e: VectorImageEntry = { waiters: new Set() };
+    entry = e;
+    imageCache.set(src, e);
+    loadVectorImage(src).then(
+      (img) => {
+        e.img = img;
+        const list = [...e.waiters];
+        e.waiters.clear();
+        list.forEach((cb) => cb());
+      },
+      () => {
+        e.failed = true;
+        e.waiters.clear();
+      },
+    );
+  }
+  if (!entry.img && !entry.failed && wait) entry.waiters.add(wait);
+  return entry.img;
+}
+
+/** 图片项：单位正方形经 item.m 映射到局部坐标，支持圆角和 fill / contain / cover（与 @meta2d/core vector 一致） */
+function drawImageItem(ctx: CanvasContext, item: VectorImageItem, img: VectorImageSource) {
+  const m = item.m;
+  const bw = Math.hypot(m[0], m[1]);
+  const bh = Math.hypot(m[2], m[3]);
+  const iw = img.width;
+  const ih = img.height;
+  if (!(bw > 0 && bh > 0 && iw > 0 && ih > 0)) return;
+  ctx.save();
+  ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+  if (item.alpha !== undefined) ctx.globalAlpha *= item.alpha;
+  if (item.radius && item.radius > 0) {
+    // 单位正方形里的圆角：两个方向的缩放不同，用椭圆角
+    const rx = Math.min(item.radius / bw, 0.5);
+    const ry = Math.min(item.radius / bh, 0.5);
+    const H = Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(rx, 0);
+    ctx.lineTo(1 - rx, 0);
+    ctx.ellipse(1 - rx, ry, rx, ry, 0, -H, 0);
+    ctx.lineTo(1, 1 - ry);
+    ctx.ellipse(1 - rx, 1 - ry, rx, ry, 0, 0, H);
+    ctx.lineTo(rx, 1);
+    ctx.ellipse(rx, 1 - ry, rx, ry, 0, H, Math.PI);
+    ctx.lineTo(0, ry);
+    ctx.ellipse(rx, ry, rx, ry, 0, Math.PI, Math.PI + H);
+    ctx.closePath();
+    ctx.clip();
+  }
+  try {
+    if (item.fit === 'contain') {
+      const s = Math.min(bw / iw, bh / ih);
+      const dw = (iw * s) / bw;
+      const dh = (ih * s) / bh;
+      ctx.drawImage(img, (1 - dw) / 2, (1 - dh) / 2, dw, dh);
+    } else if (item.fit === 'cover') {
+      const s = Math.max(bw / iw, bh / ih);
+      const sw = bw / s;
+      const sh = bh / s;
+      ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, 1, 1);
+    } else {
+      ctx.drawImage(img, 0, 0, 1, 1);
+    }
+  } catch {
+    // 图片解码失败
+  }
+  ctx.restore();
+}
+
 function drawItems(
   ctx: CanvasContext,
   items: VectorItem[],
@@ -325,6 +505,23 @@ function drawItems(
       case 'h':
         drawHatch(ctx, item, state);
         break;
+      case 'c': {
+        // 裁剪（蒙版 / 容器内容裁剪）：内容只在裁剪路径内可见
+        if (state.depth >= MAX_DEPTH || !item.items.length) break;
+        ctx.save();
+        ctx.beginPath();
+        traceVectorPath(ctx, item.d);
+        ctx.clip(item.rule);
+        drawItems(ctx, item.items, { ...state, depth: state.depth + 1 }, resolve);
+        ctx.restore();
+        break;
+      }
+      case 'i': {
+        if (!item.src) break;
+        const img = getVectorImage(item.src, state.wait);
+        img && drawImageItem(ctx, item, img);
+        break;
+      }
       case 'r': {
         if (state.depth >= MAX_DEPTH) break;
         const definition = resolve(item.id);
@@ -355,6 +552,8 @@ export interface VectorDrawOptions {
   tint?: boolean;
   viewportScale?: number;
   pixelRatio?: number;
+  /** 有图片还没加载好时，加载完成后调用（用于重绘） */
+  onImageLoad?: () => void;
 }
 
 export function drawVectorGeom(
@@ -390,6 +589,7 @@ export function drawVectorGeom(
         documentLw: documentLw,
         tint: !!options.tint,
         depth: 0,
+        wait: options.onImageLoad,
       },
       (id) => vectors[id],
     );

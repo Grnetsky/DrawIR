@@ -5,16 +5,45 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/parser/dxf" },
-    { "path": "packages/parser/visio" },
-    { "path": "packages/parser/drawio" },
-    { "path": "packages/parser/figma" },
-    { "path": "packages/render/core" },
-    { "path": "packages/render/canvas" },
-    { "path": "packages/render/svg" },
-    { "path": "packages/render/meta2d" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/parser/dxf"
+    },
+    {
+      "path": "packages/parser/visio"
+    },
+    {
+      "path": "packages/parser/drawio"
+    },
+    {
+      "path": "packages/parser/figma"
+    },
+    {
+      "path": "packages/parser/sketch"
+    },
+    {
+      "path": "packages/parser/svg"
+    },
+    {
+      "path": "packages/render/core"
+    },
+    {
+      "path": "packages/render/canvas"
+    },
+    {
+      "path": "packages/render/svg"
+    },
+    {
+      "path": "packages/render/html"
+    },
+    {
+      "path": "packages/render/meta2d"
+    }
   ]
 }

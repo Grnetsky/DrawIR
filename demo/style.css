@@ -66,6 +66,7 @@ dd { max-width: 155px; margin: 0; overflow: hidden; text-overflow: ellipsis; whi
 .svg-host { position: absolute; inset: 0; background: #fff; }
 .meta2d-host { position: absolute; inset: 0; background: #fff; }
 .svg-host > svg { display: block; width: 100%; height: 100%; }
+.html-host { overflow: hidden; }
 .canvas-badge { position: absolute; right: 13px; bottom: 12px; padding: 4px 7px; color: #8491a3; background: #ffffffd9; border: 1px solid #e5eaf0; border-radius: 4px; font-size: 8px; letter-spacing: 1px; pointer-events: none; }
 .drop-message { position: absolute; inset: 20px; display: none; align-items: center; justify-content: center; color: #2372d8; background: #edf5ffed; border: 2px dashed #68a7ff; border-radius: 8px; font-size: 16px; font-weight: 600; pointer-events: none; }
 .canvas-shell.dragover .drop-message { display: flex; }

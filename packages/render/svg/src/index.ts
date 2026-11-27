@@ -2,11 +2,13 @@ import type { VectorDocument, VectorItem, VectorMatrix } from '@drawir/core';
 import type { Renderer, Viewport } from '@drawir/render-core';
 import { renderHatch } from './hatch';
 import { renderPath, vectorPathToSvg } from './path';
+import { renderImage } from './image';
 import { renderText } from './text';
 import type { SvgRendererOptions, SvgState, SvgTarget } from './types';
 import { escapeXml, number, resolveColor } from './utils';
 
-export type { SvgRendererOptions, SvgTarget } from './types';
+export type { SvgRendererOptions, SvgState, SvgTarget } from './types';
+export { gradientDef, resolveColor as resolveSvgColor } from './utils';
 export { vectorPathToSvg } from './path';
 
 const MAX_DEPTH = 24;
@@ -32,6 +34,20 @@ export function renderVectorItems(
         break;
       case 'h':
         output.push(renderHatch(item, state));
+        break;
+      case 'c': {
+        // 裁剪（蒙版 / 容器内容裁剪）
+        if (depth >= MAX_DEPTH || !item.items.length) break;
+        const id = `drawir-c${state.nextId()}`;
+        const rule = item.rule ? ` clip-rule="${item.rule}"` : '';
+        output.push(
+          `<defs><clipPath id="${id}"><path d="${vectorPathToSvg(item.d)}"${rule}/></clipPath></defs>` +
+            `<g clip-path="url(#${id})">${renderVectorItems(item.items, document, state, depth + 1)}</g>`,
+        );
+        break;
+      }
+      case 'i':
+        output.push(renderImage(item, state));
         break;
       case 'r': {
         if (depth >= MAX_DEPTH) break;

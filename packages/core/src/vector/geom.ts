@@ -8,6 +8,8 @@ import {
   VectorBox,
   VectorColor,
   VectorGeom,
+  VectorGradient,
+  VectorPaint,
   VectorHatchLine,
   VectorItem,
   VectorMatrix,
@@ -222,6 +224,9 @@ export function textItemBox(item: VectorTextItem): VectorBox {
   return acc.box();
 }
 
+/** 图片项的单位正方形 */
+const UNIT_BOX: VectorBox = { x: 0, y: 0, width: 1, height: 1 };
+
 /**
  * 计算几何的包围盒。
  * @param resolve 根据 id 取共享几何（用于 ref），找不到时忽略该引用
@@ -255,6 +260,25 @@ export function computeItemsBox(items: VectorItem[], resolve?: (id: string) => V
       case 'r': {
         const def = resolve?.(item.id);
         def && acc.addBox(transformBox(item.m, def.bbox));
+        break;
+      }
+      case 'i':
+        acc.addBox(transformBox(item.m, UNIT_BOX));
+        break;
+      case 'c': {
+        // 可见范围 = 裁剪路径框 ∩ 内容框
+        const clip = new BoxAccumulator();
+        accumulatePathBox(item.d, clip);
+        const inner = computeItemsBox(item.items, resolve);
+        if (clip.empty || !item.items.length) break;
+        const x0 = Math.max(clip.minX, inner.x);
+        const y0 = Math.max(clip.minY, inner.y);
+        const x1 = Math.min(clip.maxX, inner.x + inner.width);
+        const y1 = Math.min(clip.maxY, inner.y + inner.height);
+        if (x1 >= x0 && y1 >= y0) {
+          acc.add(x0, y0);
+          acc.add(x1, y1);
+        }
         break;
       }
     }
@@ -465,8 +489,23 @@ export function transformHatchLine(m: VectorMatrix, line: VectorHatchLine): Vect
 }
 
 /** 颜色是否为 IR 中的动态取值 */
-export function isDynamicColor(c: VectorColor | undefined) {
+export function isDynamicColor(c: VectorPaint | undefined) {
   return c === '$fg' || c === '$bg';
+}
+
+/** 是否为 IR 渐变（不是颜色字符串，也不是 CanvasGradient / CanvasPattern） */
+export function isGradient(c: unknown): c is VectorGradient {
+  return !!c && typeof c === 'object' && Array.isArray((c as VectorGradient).stops);
+}
+
+/** 渐变随几何变换：左乘到渐变矩阵 */
+export function transformGradient(g: VectorGradient, m: VectorMatrix): VectorGradient {
+  return { ...g, m: g.m ? multiplyMatrix(m, g.m) : m };
+}
+
+/** 渐变的代表色（中间色标），供不支持渐变的后端退化使用 */
+export function gradientFallback(g: VectorGradient): string {
+  return g.stops[Math.floor(g.stops.length / 2)]?.c ?? 'none';
 }
 
 /**
@@ -514,6 +553,8 @@ export function transformItem(item: VectorItem, m: VectorMatrix, k = matrixScale
         const s: VectorStyle = { ...item.s };
         typeof s.lw === 'number' && (s.lw *= k);
         s.dash && (s.dash = s.dash.map((v) => v * k));
+        isGradient(s.fill) && (s.fill = transformGradient(s.fill, m));
+        isGradient(s.stroke) && (s.stroke = transformGradient(s.stroke, m));
         out.s = s;
       }
       return out;
@@ -526,6 +567,13 @@ export function transformItem(item: VectorItem, m: VectorMatrix, k = matrixScale
       };
     case 'r':
       return { ...item, m: multiplyMatrix(m, item.m) };
+    case 'c':
+      return { ...item, d: transformPathData(item.d, m), items: item.items.map((it) => transformItem(it, m, k)) };
+    case 'i': {
+      const out = { ...item, m: multiplyMatrix(m, item.m) };
+      item.radius && (out.radius = item.radius * k);
+      return out;
+    }
     case 't': {
       const [x, y] = applyMatrix(m, item.x, item.y);
       const ux = Math.cos(item.r || 0);

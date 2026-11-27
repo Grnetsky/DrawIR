@@ -1,0 +1,12 @@
+{
+  "name": "@drawir/parser-sketch",
+  "version": "1.0.0",
+  "description": "Sketch (.sketch) parser for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*",
+    "fflate": "^0.8.3"
+  }
+}

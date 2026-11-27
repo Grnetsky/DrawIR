@@ -1,5 +1,6 @@
 import {
   CanvasRenderer,
+  HtmlRenderer,
   SvgRenderer,
   VectorPathBuilder,
   createGeom,
@@ -7,6 +8,8 @@ import {
   parseDrawio,
   parseDxf,
   parseFigma,
+  parseSketch,
+  parseSvg,
   parseVisio,
   pathItem,
   Meta2dRenderer,
@@ -76,9 +79,11 @@ const fileInput = element<HTMLInputElement>('file-input');
 const dropZone = element<HTMLDivElement>('drop-zone');
 const canvasRenderer = new CanvasRenderer(canvas, { autoResize: true });
 const svgRenderer = new SvgRenderer(svgHost);
+const htmlHost = element<HTMLDivElement>('html-host');
+const htmlRenderer = new HtmlRenderer(htmlHost);
 let currentDocument = createSample();
 let currentView: Viewport | undefined;
-type Backend = 'canvas' | 'svg' | 'meta2d';
+type Backend = 'canvas' | 'svg' | 'html' | 'meta2d';
 const meta2dHost = element<HTMLDivElement>('meta2d-host');
 let backend: Backend = 'canvas';
 let meta2dRenderer: Meta2dRenderer | undefined;
@@ -119,6 +124,12 @@ function draw(fit = false) {
     }).catch(showError);
   } else if (backend === 'canvas') {
     canvasRenderer.render(currentDocument, { viewport: currentView });
+  } else if (backend === 'html') {
+    htmlRenderer.render(currentDocument, {
+      viewport: currentView,
+      width: dropZone.clientWidth,
+      height: dropZone.clientHeight,
+    });
   } else {
     svgRenderer.render(currentDocument, {
       viewport: currentView,
@@ -135,9 +146,10 @@ function setBackend(value: Backend) {
   backend = value;
   canvas.hidden = value !== 'canvas';
   svgHost.hidden = value !== 'svg';
+  htmlHost.hidden = value !== 'html';
   meta2dHost.hidden = value !== 'meta2d';
-  for (const b of ['canvas', 'svg', 'meta2d']) element(`backend-${b}`).classList.toggle('active', value === b);
-  element('backend-badge').textContent = value === 'canvas' ? 'CANVAS 2D' : value === 'svg' ? 'SVG VECTOR' : 'META2D 1.x';
+  for (const b of ['canvas', 'svg', 'html', 'meta2d']) element(`backend-${b}`).classList.toggle('active', value === b);
+  element('backend-badge').textContent = value === 'canvas' ? 'CANVAS 2D' : value === 'svg' ? 'SVG VECTOR' : value === 'html' ? 'HTML DOM' : 'META2D 1.x';
   draw();
 }
 
@@ -172,11 +184,17 @@ async function openFile(file: File) {
     } else if (extension === 'fig') {
       currentDocument = await parseFigma(bytes, { pageBorder: true });
       updateInfo('Figma', file.name);
+    } else if (extension === 'sketch') {
+      currentDocument = await parseSketch(bytes);
+      updateInfo('Sketch', file.name);
+    } else if (extension === 'svgz' || (extension === 'svg' && !/\.drawio\.svg$/i.test(file.name))) {
+      currentDocument = await parseSvg(bytes);
+      updateInfo('SVG', file.name);
     } else if (['drawio', 'dio', 'xml', 'svg', 'png'].includes(extension || '')) {
       currentDocument = await parseDrawio(bytes, { pageBorder: true });
       updateInfo('draw.io', file.name);
     } else {
-      throw new Error('请选择 .dxf、.vsdx、.drawio 或 .fig 文件');
+      throw new Error('请选择 .dxf、.vsdx、.drawio、.fig、.sketch 或 .svg 文件');
     }
     const errors = currentDocument.stats?.errors?.length || 0;
     status.textContent = errors ? `已打开，${errors} 条内容未能解析` : '解析完成';
@@ -220,6 +238,7 @@ element('fit').addEventListener('click', () => draw(true));
 element('backend-canvas').addEventListener('click', () => setBackend('canvas'));
 element('backend-svg').addEventListener('click', () => setBackend('svg'));
 element('backend-meta2d').addEventListener('click', () => setBackend('meta2d'));
+element('backend-html').addEventListener('click', () => setBackend('html'));
 
 dropZone.addEventListener('wheel', (event) => {
   if (backend === 'meta2d') return;

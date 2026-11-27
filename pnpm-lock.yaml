@@ -20,6 +20,12 @@ importers:
       '@drawir/parser-figma':
         specifier: workspace:*
         version: link:packages/parser/figma
+      '@drawir/parser-sketch':
+        specifier: workspace:*
+        version: link:packages/parser/sketch
+      '@drawir/parser-svg':
+        specifier: workspace:*
+        version: link:packages/parser/svg
       '@drawir/parser-visio':
         specifier: workspace:*
         version: link:packages/parser/visio
@@ -29,6 +35,9 @@ importers:
       '@drawir/render-core':
         specifier: workspace:*
         version: link:packages/render/core
+      '@drawir/render-html':
+        specifier: workspace:*
+        version: link:packages/render/html
       '@drawir/render-meta2d':
         specifier: workspace:*
         version: link:packages/render/meta2d
@@ -37,8 +46,8 @@ importers:
         version: link:packages/render/svg
     devDependencies:
       '@meta2d/core':
-        specifier: ~1.1.35
-        version: 1.1.35
+        specifier: ~1.1.36
+        version: 1.1.36
       typescript:
         specifier: ^5.5.3
         version: 5.9.3
@@ -78,6 +87,24 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
 
+  packages/parser/sketch:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+
+  packages/parser/svg:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+
   packages/parser/visio:
     dependencies:
       '@drawir/core':
@@ -105,6 +132,18 @@ importers:
         specifier: workspace:*
         version: link:../../core
 
+  packages/render/html:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@drawir/render-core':
+        specifier: workspace:*
+        version: link:../core
+      '@drawir/render-svg':
+        specifier: workspace:*
+        version: link:../svg
+
   packages/render/meta2d:
     dependencies:
       '@drawir/core':
@@ -115,8 +154,8 @@ importers:
         version: link:../core
     devDependencies:
       '@meta2d/core':
-        specifier: ~1.1.35
-        version: 1.1.35
+        specifier: ~1.1.36
+        version: 1.1.36
 
   packages/render/svg:
     dependencies:
@@ -132,8 +171,14 @@ packages:
   '@fxts/core@1.28.0':
     resolution: {integrity: sha512-6AC3L6wScT5lLaipQRNgBJ/2PrL7rjV1tIt6S2dz7wRZ6c4gds+RWuG5djhq7WsyVB5jGYGImcVMl/DUhG0DlQ==}
 
-  '@meta2d/core@1.1.35':
-    resolution: {integrity: sha512-7RSJvgGrlEzVe73rkD3CXxuK8F6q5aVEdH2IvtmZumGU+u2r3INDqyMwH2nXrXfffqqQTJiZhxfxBMkkBQgF+g==}
+  '@meta2d/core@1.1.36':
+    resolution: {integrity: sha512-Mwf+tg9DXTBqqsDhpMChyIqkBG05lan9SvcoFsKcbClNWMe1kpVetNyuXYKqIGgHIAoxyWds2umIW38TIFtLpg==}
+
+  '@meta2d/drawir@1.0.0':
+    resolution: {integrity: sha512-QZy35O2V/lv8iKuSPchzuoUwDy90ziZ059yuqQK0CUkSmo8XWULOR8BsRWix7/RfOrrNFsJdtmvGsLa0ip9tug==}
+
+  '@meta2d/math@1.0.0':
+    resolution: {integrity: sha512-6zTRSPaNfQq3WgDNsy/9SN4s+mGkk9ugE+quWIq1P1hoTlBeicseyI2MmpmqsEImCF3vXbLh4CkG0kSJV4nP+w==}
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
@@ -590,14 +635,22 @@ snapshots:
     dependencies:
       tslib: 2.9.1
 
-  '@meta2d/core@1.1.35':
+  '@meta2d/core@1.1.36':
     dependencies:
+      '@meta2d/drawir': 1.0.0
+      '@meta2d/math': 1.0.0
       mitt: 2.1.0
       mqtt: 4.3.8
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@meta2d/drawir@1.0.0':
+    dependencies:
+      '@meta2d/math': 1.0.0
+
+  '@meta2d/math@1.0.0': {}
 
   '@oxc-project/types@0.156.0': {}
 

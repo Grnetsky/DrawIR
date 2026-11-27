@@ -1,29 +1,32 @@
 {
   "name": "drawir",
   "version": "1.0.0",
-  "description": "CAD/Visio intermediate representation and pluggable renderers",
+  "description": "Vector intermediate representation (DXF / Visio / Figma / draw.io / Sketch / SVG) and pluggable renderers (canvas / svg / html / meta2d)",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/render/core packages/render/canvas packages/render/svg packages/render/meta2d && tsc -p tsconfig.json",
+    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d && tsc -p tsconfig.json",
     "dev": "vite demo --host 0.0.0.0",
     "demo:build": "vite build demo",
-    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/render/core packages/render/canvas packages/render/svg packages/render/meta2d --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@drawir/core": "workspace:*",
     "@drawir/parser-drawio": "workspace:*",
     "@drawir/parser-dxf": "workspace:*",
     "@drawir/parser-figma": "workspace:*",
+    "@drawir/parser-sketch": "workspace:*",
+    "@drawir/parser-svg": "workspace:*",
     "@drawir/parser-visio": "workspace:*",
     "@drawir/render-canvas": "workspace:*",
     "@drawir/render-core": "workspace:*",
+    "@drawir/render-html": "workspace:*",
     "@drawir/render-meta2d": "workspace:*",
     "@drawir/render-svg": "workspace:*"
   },
   "devDependencies": {
-    "@meta2d/core": "~1.1.35",
+    "@meta2d/core": "~1.1.36",
     "typescript": "^5.5.3",
     "vite": "^8.3.8"
   }

@@ -17,7 +17,8 @@ export function penRectOfGeom(bbox: { x: number; y: number; width: number; heigh
   return { x: bbox.x - (width - bbox.width) / 2, y: bbox.y - (height - bbox.height) / 2, width, height };
 }
 
-const isFixed = (c: string | undefined) => !!c && c !== 'none' && c[0] !== '$';
+/** 固定颜色（不含 '$fg' / '$bg' / 'none' 和渐变）才能提升到图元属性 */
+const isFixed = (c: unknown): boolean => typeof c === 'string' && !!c && c !== 'none' && c[0] !== '$';
 
 function randomId() {
   return Math.random().toString(36).slice(2, 8);
@@ -47,7 +48,11 @@ export function toMeta2dData(doc: VectorDocument, options: Meta2dConvertOptions 
   // 共享几何加命名空间，引用项同步改名
   const rename = (id: string) => (ns ? `${ns}:${id}` : id);
   const renameItems = (items: VectorItem[]): VectorItem[] =>
-    ns ? items.map((it) => (it.t === 'r' ? { ...it, id: rename(it.id) } : it)) : items;
+    ns
+      ? items.map((it) =>
+          it.t === 'r' ? { ...it, id: rename(it.id) } : it.t === 'c' ? { ...it, items: renameItems(it.items) } : it,
+        )
+      : items;
   const vectors: Record<string, VectorGeom> = {};
   for (const id in doc.vectors || {}) {
     const g = doc.vectors![id];
@@ -62,6 +67,8 @@ export function toMeta2dData(doc: VectorDocument, options: Meta2dConvertOptions 
       if (it.t === 'p') return it.s?.fill === '$bg' || it.s?.stroke === '$bg';
       if (it.t === 't') return it.fill === '$bg';
       if (it.t === 'h') return it.stroke === '$bg';
+      if (it.t === 'i') return false;
+      if (it.t === 'c') return depth <= 24 && usesBg(it.items, depth + 1);
       if (depth > 24) return false;
       if (!bgCache.has(it.id)) {
         bgCache.set(it.id, false);
@@ -147,7 +154,7 @@ function bindStyle(pen: any, s: number, docLineWidth: number | undefined) {
     pen.color = st.stroke;
     delete st.stroke;
   }
-  if (isFixed(st.fill) && st.fill !== '$fg') {
+  if (isFixed(st.fill)) {
     pen.background = st.fill;
     st.fill = '$bg';
   }

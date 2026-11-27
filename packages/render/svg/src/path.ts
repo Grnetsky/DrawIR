@@ -1,7 +1,7 @@
 import { ellipseToCubics, VectorOp, VectorOpSize } from '@drawir/core';
 import type { VectorPathData, VectorPathItem, VectorStyle } from '@drawir/core';
 import type { SvgState } from './types';
-import { number, resolveColor } from './utils';
+import { escapeXml, number, resolvePaint } from './utils';
 
 export function vectorPathToSvg(data: VectorPathData) {
   const out: string[] = [];
@@ -46,10 +46,10 @@ export function vectorPathToSvg(data: VectorPathData) {
   return out.join(' ');
 }
 
-function styleAttributes(style: VectorStyle | undefined, state: SvgState) {
+function styleAttributes(style: VectorStyle | undefined, state: SvgState, defs: string[]) {
   const attributes = [
-    `fill="${resolveColor(style?.fill, state, 'none')}"`,
-    `stroke="${resolveColor(style?.stroke, state, 'fg')}"`,
+    `fill="${escapeXml(resolvePaint(style?.fill, state, 'none', defs))}"`,
+    `stroke="${escapeXml(resolvePaint(style?.stroke, state, 'fg', defs))}"`,
   ];
   const localWidth = style?.lw === '$lw' ? state.lineWidth : style?.lw ?? state.lineWidth;
   const width = Math.max(localWidth, style?.px || 0);
@@ -65,5 +65,7 @@ function styleAttributes(style: VectorStyle | undefined, state: SvgState) {
 }
 
 export function renderPath(item: VectorPathItem, state: SvgState) {
-  return `<path d="${vectorPathToSvg(item.d)}" ${styleAttributes(item.s, state)}/>`;
+  const defs: string[] = [];
+  const attributes = styleAttributes(item.s, state, defs);
+  return `${defs.length ? `<defs>${defs.join('')}</defs>` : ''}<path d="${vectorPathToSvg(item.d)}" ${attributes}/>`;
 }

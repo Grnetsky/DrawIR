@@ -1,22 +1,7 @@
-import { VisioToIR } from './parser';
-import type { VisioDocument, VisioParseOptions } from './types';
-
-export type { VisioDocument, VisioParseOptions, VisioParseStats, VisioPageInfo } from './types';
-export { VisioToIR } from './parser';
-
-async function toBytes(input: ArrayBuffer | Uint8Array | Blob): Promise<Uint8Array> {
-  if (input instanceof Uint8Array) return input;
-  if (input instanceof ArrayBuffer) return new Uint8Array(input);
-  return new Uint8Array(await (input as Blob).arrayBuffer());
-}
-
-export async function parseVisio(
-  input: ArrayBuffer | Uint8Array | Blob,
-  options: VisioParseOptions = {},
-): Promise<VisioDocument> {
-  return new VisioToIR(options).convert(await toBytes(input));
-}
-
-export function parseVisioSync(data: Uint8Array, options: VisioParseOptions = {}): VisioDocument {
-  return new VisioToIR(options).convert(data);
-}
+/**
+ * DrawIR 入口（只此文件为 DrawIR 独有）。src 下其余文件与 ../../../meta2d-vsdx/src 逐字同步（仅 @meta2d/drawir → @drawir/core），
+ * 同一套解析逻辑：meta2d-vsdx 输出 meta2d 图元（v1 / v2 适配层），这里输出 DrawIR 的 VectorDocument。
+ */
+export type { VisioParseOptions, VisioParseStats, VisioPageInfo, VisioVectorDocument, VisioVectorDocument as VisioDocument } from './types';
+export { parseVisioVector as parseVisio, parseVisioVectorSync as parseVisioSync, type VisioInput } from './common';
+export { VsdxPackage } from './package';

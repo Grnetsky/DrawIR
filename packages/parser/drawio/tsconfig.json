@@ -2,7 +2,12 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    // 源码与 meta2d-xxx 逐字同步，编译选项与它们一致（宽松模式）
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"]
   },
   "include": ["src"],
   "references": [{ "path": "../../core" }]

@@ -3,17 +3,17 @@ import {
   BoxAccumulator,
   catmullRomToCubics,
   composeMatrix,
+  computeItemsBox,
+  createGeom,
   IDENTITY,
   matrixScale,
   multiplyMatrix,
+  pathItem,
   rotateMatrix,
   sampleNurbs,
   scaleMatrix,
-  translateMatrix,
-  computeItemsBox,
-  createGeom,
-  pathItem,
   transformItem,
+  translateMatrix,
   VectorBox,
   VectorGeom,
   VectorHatchLine,
@@ -23,10 +23,11 @@ import {
   VectorStyle,
   VectorTextItem,
 } from '@drawir/core';
+import { penRectOfGeom, s8 } from './util';
 import { aciToHex, isContrastColor, trueColorToHex } from './colors';
 import { parseMText, parseSingleLineText } from './text';
 import { applyDrawOrder, readSortEntsTables } from './sortents';
-import type { DxfDocument, DxfEntityInfo, DxfParseOptions, DxfParseStats } from './types';
+import type { DxfDocument, DxfParseOptions, DxfParseStats, DxfPenInfo } from './types';
 
 const DEG = Math.PI / 180;
 /** 坐标存储在 OCS 中的实体（DXF 规范「Object Coordinate Systems」一节） */
@@ -66,6 +67,17 @@ interface Output {
   items: VectorItem[];
 }
 
+/** 显示名称（实体类型 / 块名 / 图层名），交给适配层前暂存 */
+const LABEL = '_label';
+
+/** 把通用图元转成某个 meta2d 版本的图元格式 */
+export interface DxfPenAdapter {
+  vector(pen: any, label: string | undefined): void;
+  text(item: VectorTextItem, opts: { id: string; label?: string; color?: string; dxf: DxfPenInfo }): any;
+  /** children 为绝对坐标，返回 [父, ...子] */
+  group(group: { id: string; label?: string; dxf: DxfPenInfo; x: number; y: number; width: number; height: number }, children: any[]): any[];
+}
+
 /**
  * DXF → Vector IR。
  *
@@ -73,14 +85,14 @@ interface Output {
  * 块定义按块自身坐标（未缩放、未翻转）保存为共享几何，引用处只记录一个矩阵，块内的翻转、缩放
  * 全部在引用矩阵里，块定义只解析一次、只存一份。
  *
- * 与 V1 的差异（V1 问题见 README）：
- * - 不读取 window / DrawIR 全局状态，无单例，结果只取决于输入，可在 Worker 中运行；
+ * 与旧版（1.0.x，drawCommand）的差异：
+ * - 不读取 window / meta2d 全局状态，无单例，结果只取决于输入，可在 Worker 中运行；
  * - INSERT 引用共享定义，不再深拷贝展开；支持 MINSERT 阵列、负缩放镜像、OCS 镜像（extrusion z<0）；
  * - HATCH 矢量绘制（实体填充 + 图案线族裁剪），不再栅格化成 base64 图片；圆弧、椭圆、样条边界都支持；
  * - 颜色正确处理 ByLayer / ByBlock / 真彩色 / 图层关闭；线型按 $LTSCALE × 实体线型比例换算；
  * - MTEXT 剥离全部格式码，支持对齐、旋转、换行；TEXT 支持对齐点和宽度因子。
  */
-export class DxfToVector {
+export class DxfConverter {
   private opts: Required<Omit<DxfParseOptions, 'scale' | 'layers' | 'encoding' | 'origin' | 'backdrop' | 'space'>> &
     Pick<DxfParseOptions, 'scale' | 'layers' | 'encoding' | 'origin' | 'backdrop' | 'space'>;
   private dxf: any;
@@ -88,16 +100,17 @@ export class DxfToVector {
   private lineTypes = new Map<string, LineType>();
   private ltScale = 1;
   private scale = 1;
-  private nextId = 0;
-  /** 世界矩阵：CAD 坐标 → 输出坐标 */
+  /** 世界矩阵：CAD 坐标 → 画布坐标 */
   private world: VectorMatrix = IDENTITY;
+  /** 块名 → 共享几何 id（null 表示正在解析，用于发现循环引用） */
   private blockIds = new Map<string, string | null>();
   private vectors: Record<string, VectorGeom> = {};
   private layerFilter?: Set<string>;
+  /** 绘制次序表：块记录句柄 → (实体句柄 → 排序键) */
   private drawOrder = new Map<string, Map<string, number>>();
   stats: DxfParseStats;
 
-  constructor(options: DxfParseOptions = {}) {
+  constructor(options: DxfParseOptions = {}, private adapter: DxfPenAdapter) {
     this.opts = {
       fitWidth: 1920,
       fitHeight: 1080,
@@ -106,16 +119,15 @@ export class DxfToVector {
       text: true,
       contrastColor: true,
       minLineWidth: 0,
+      editable: true,
       ...options,
     };
     this.layerFilter = options.layers?.length ? new Set(options.layers) : undefined;
   }
 
-  private id() {
-    return (++this.nextId).toString(36);
-  }
-
-  /** @param text DXF 原文，用于读取绘制次序表。 */
+  /**
+   * @param text DXF 原文。提供时读取绘制次序表（SORTENTSTABLE），否则按实体在文件中的顺序绘制
+   */
   convert(dxf: any, text?: string): DxfDocument {
     const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.dxf = dxf;
@@ -131,28 +143,35 @@ export class DxfToVector {
     };
     this.readTables();
     this.ltScale = +dxf.header?.$LTSCALE || 1;
+
     const entities: Entity[] = this.ordered(this.selectSpace(dxf.entities || []));
+
+    // 先在 CAD 坐标（单位矩阵）下转换一遍，得到真实内容范围；再整体映射到画布。
+    // 不直接用头部 $EXTMIN/$EXTMAX：实际图纸里它经常是过期的（删掉的内容仍算在内），
+    // 用它算缩放会让图纸只占画面一角（实测暖通图纸：头部范围比内容大 3 倍）。
     this.world = IDENTITY;
-    const fragments = this.opts.granularity === 'layer' ? this.convertByLayer(entities) : this.convertByEntity(entities);
-    const extents = this.contentExtents(fragments);
+    const pens = this.opts.granularity === 'layer' ? this.convertByLayer(entities) : this.convertByEntity(entities);
+    const extents = this.contentExtents(pens);
     this.stats.extents = extents;
-    this.sendBackdropsBack(fragments, extents);
+    this.sendBackdropsBack(pens, extents);
     const w = extents.maxX - extents.minX || 1;
     const h = extents.maxY - extents.minY || 1;
     this.scale = this.opts.scale || Math.min(this.opts.fitWidth / w, this.opts.fitHeight / h) || 1;
     this.stats.scale = this.scale;
     const ox = this.opts.origin?.x || 0;
     const oy = this.opts.origin?.y || 0;
+    // CAD (x, y) → 画布 ((x - minX) * s + ox, (maxY - y) * s + oy)
     this.world = [this.scale, 0, 0, -this.scale, ox - extents.minX * this.scale, oy + extents.maxY * this.scale];
-    this.placePens(fragments);
-    const items = fragments.flatMap((fragment) => fragment.vector.items as VectorItem[]);
-    const geom = createGeom(items, (id) => this.vectors[id]);
+    this.placePens(pens);
+    this.opts.editable && this.makeEditable(pens);
+    this.finalize(pens);
+
     const layers: DxfDocument['layers'] = {};
     this.layers.forEach((l) => (layers[l.name] = { color: l.color, visible: l.visible }));
     this.stats.blocks = Object.keys(this.vectors).length;
     this.stats.ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
     return {
-      ...geom,
+      pens,
       vectors: this.vectors,
       width: Math.round(w * this.scale),
       height: Math.round(h * this.scale),
@@ -826,7 +845,7 @@ export class DxfToVector {
       return undefined;
     }
     const geom = createGeom(out.items, (id) => this.vectors[id]);
-    const id = `dxf-${this.id()}`;
+    const id = `dxf-${s8()}`;
     this.vectors[id] = geom;
     this.blockIds.set(name, id);
     return id;
@@ -982,29 +1001,143 @@ export class DxfToVector {
     return { minX: b.x, minY: b.y, maxX: b.x + b.width, maxY: b.y + b.height };
   }
 
-  /** 将内部几何片段统一变换到输出坐标。 */
-  private placePens(fragments: any[]) {
+  /**
+   * 把在 CAD 坐标下生成的图元整体变换到画布坐标：几何按世界矩阵变换（相似变换 + Y 翻转），
+   * 图元框按新几何框重算。块定义不变（引用矩阵左乘世界矩阵即可）。
+   */
+  private placePens(pens: any[]) {
     const m = this.world;
     const k = matrixScale(m);
-    for (const fragment of fragments) {
-      fragment.vector.items = fragment.vector.items.map((it: VectorItem) => transformItem(it, m, k));
-      fragment.vector = createGeom(fragment.vector.items, (id) => this.vectors[id]);
-      Object.assign(fragment, fragment.vector.bbox);
+    for (const pen of pens) {
+      pen.vector.items = pen.vector.items.map((it: VectorItem) => transformItem(it, m, k));
+      const geom = createGeom(pen.vector.items, (id) => this.vectors[id]);
+      pen.vector = geom;
+      Object.assign(pen, penRectOfGeom(geom.bbox));
     }
   }
 
-  private dxfInfo(e: Entity): DxfEntityInfo {
-    const info: DxfEntityInfo = { type: e.type, layer: e.layer };
+  /**
+   * 转成可在编辑器里修改的图元（opts.editable，默认开）：
+   * - 顶层文字（TEXT / MTEXT / ATTRIB）→ 原生 text 图元：双击改内容，属性面板改字号、颜色、字体；
+   *   INSERT 上附带的属性文字拆成独立文字图元，与块图元组成一个组合，整体移动、单独改字；
+   * - 只有一条路径的实体（直线、圆、多段线、填充…）→ 颜色 / 线宽绑定到图元：
+   *   描边色 = pen.color，填充色 = pen.background，线宽 = pen.lineWidth，属性面板修改立即生效；
+   * - 块引用（INSERT）整体是一个图元：可移动、缩放、旋转，改 pen.color 时块内「随块」颜色跟着变，
+   *   开启 vectorTint 可把整个块改成同一种颜色。
+   */
+  private makeEditable(pens: any[]) {
+    const out: any[] = [];
+    for (const pen of pens) {
+      const items: VectorItem[] = pen.vector.items;
+      const texts = items.filter((i) => i.t === 't') as VectorTextItem[];
+      const shapes = items.filter((i) => i.t !== 't');
+      const color = pen.color;
+
+      // 纯文字实体 → 一个或多个原生文字图元
+      if (!shapes.length && texts.length) {
+        texts.forEach((t, i) => {
+          out.push(this.adapter.text(t, { id: i ? s8() : pen.id, label: pen[LABEL], color, dxf: { ...pen.dxf } }));
+        });
+        continue;
+      }
+
+      // 图形 + 文字（块引用带属性）→ 组合：矢量图元 + 文字图元
+      let shapePen = pen;
+      if (texts.length) {
+        const geom = createGeom(shapes, (id) => this.vectors[id]);
+        shapePen = { ...pen, id: s8(), vector: geom, ...penRectOfGeom(geom.bbox), dxf: { ...pen.dxf } };
+        const textPens = texts.map((t) =>
+          this.adapter.text(t, { id: s8(), label: 'ATTRIB', color, dxf: { ...pen.dxf, type: 'ATTRIB' } }),
+        );
+        this.finalizeVector(shapePen);
+        const acc = new BoxAccumulator();
+        [shapePen, ...textPens].forEach((p) => {
+          acc.add(p.x, p.y);
+          acc.add(p.x + p.width, p.y + p.height);
+        });
+        const group = { id: pen.id, label: pen[LABEL], dxf: { ...pen.dxf }, ...acc.box() };
+        out.push(...this.adapter.group(group, [shapePen, ...textPens]));
+      } else {
+        out.push(shapePen);
+      }
+      this.bindStyle(shapePen);
+    }
+    pens.length = 0;
+    pens.push(...out);
+  }
+
+  private finalize(pens: any[]) {
+    for (const pen of pens) {
+      pen.vector && LABEL in pen && this.finalizeVector(pen);
+    }
+  }
+
+  private finalizeVector(pen: any) {
+    if (!(LABEL in pen)) return;
+    const label = pen[LABEL];
+    delete pen[LABEL];
+    this.adapter.vector(pen, label);
+  }
+
+  /** 单路径图元：把颜色、线宽交给图元属性（'$fg' / '$bg' / '$lw'） */
+  private bindStyle(pen: any) {
+    const items: VectorItem[] = pen.vector.items;
+    if (items.length !== 1 || items[0].t !== 'p') return;
+    const it = items[0];
+    const st = { ...(it.s || {}) };
+    const stroke = st.stroke;
+    const fill = st.fill;
+    // 描边：固定颜色提升到 pen.color
+    if (stroke && stroke !== 'none' && stroke !== '$fg') {
+      pen.color = stroke;
+      delete st.stroke;
+    }
+    // 填充：固定颜色提升到 pen.background；'$fg' 填充（实体填充随图元色）保持跟随 pen.color
+    if (fill && fill !== 'none' && fill !== '$fg' && fill !== '$bg') {
+      pen.background = fill;
+      st.fill = '$bg';
+    }
+    // 线宽：几何线宽（多段线全局宽度）换算成像素后交给 pen.lineWidth；显示线宽（打印线宽）同理
+    if (st.stroke !== 'none') {
+      if (typeof st.lw === 'number') {
+        pen.lineWidth = st.lw;
+        st.lw = '$lw';
+        delete st.px;
+      } else if (st.px) {
+        pen.lineWidth = st.px;
+        st.lw = '$lw';
+        delete st.px;
+      } else {
+        st.lw = '$lw';
+        pen.lineWidth = 1;
+      }
+    }
+    it.s = st;
+  }
+
+  /** 实体的 DXF 源信息，统一收在 pen.dxf 下，不占用 core 图元的属性 */
+  private dxfInfo(e: Entity): DxfPenInfo {
+    const info: DxfPenInfo = { type: e.type, layer: e.layer };
     e.handle != null && (info.handle = String(e.handle));
     e.type === 'INSERT' && e.name && (info.block = e.name);
     return info;
   }
 
-  private makePen(items: VectorItem[], extra: Record<string, any>) {
+  private makePen(items: VectorItem[], label: string | undefined, extra: Record<string, any>) {
     const geom = createGeom(items, (id) => this.vectors[id]);
     const { bbox } = geom;
     if (!Number.isFinite(bbox.x) || !Number.isFinite(bbox.y)) return undefined;
-    return { id: this.id(), ...bbox, vector: geom, ...extra };
+    return {
+      id: s8(),
+      [LABEL]: label,
+      // 水平线 / 竖线的框撑到最小尺寸，否则会被视口筛选当作「太小」跳过
+      ...penRectOfGeom(bbox),
+      vector: geom,
+      // 矢量图元不显示锚点、不做连线吸附：CAD 实体数量大，默认锚点会让拾取很慢
+      disableAnchor: true,
+      anchors: [] as any[],
+      ...extra,
+    };
   }
 
   private convertByEntity(entities: Entity[]) {
@@ -1024,8 +1157,7 @@ export class DxfToVector {
           this.emit(e, this.world, false, out);
           if (out.items.length) {
             const prev = lastInsert.pen;
-            const merged = this.makePen([...this.denormalize(prev), ...out.items], {
-              name: prev.name,
+            const merged = this.makePen([...this.denormalize(prev), ...out.items], prev[LABEL], {
               color: prev.color,
               dxf: prev.dxf,
             });
@@ -1046,8 +1178,7 @@ export class DxfToVector {
         if (!out.items.length) continue;
         // 顶层实体颜色交给 pen.color，item 用 $fg，这样悬停 / 选中能整体换色
         const color = this.liftColor(out.items, e);
-        const pen = this.makePen(out.items, {
-          name: e.type === 'INSERT' ? e.name : e.type,
+        const pen = this.makePen(out.items, e.type === 'INSERT' ? e.name : e.type, {
           color,
           dxf: this.dxfInfo(e),
         });
@@ -1119,7 +1250,7 @@ export class DxfToVector {
     }
     const pens: any[] = [];
     groups.forEach((items, layer) => {
-      const pen = this.makePen(items, { name: layer, color: this.layers.get(layer)?.color, dxf: { layer } });
+      const pen = this.makePen(items, layer, { color: this.layers.get(layer)?.color, dxf: { layer } });
       pen && pens.push(pen);
     });
     return pens;

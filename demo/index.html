@@ -26,7 +26,7 @@
             <p class="eyebrow">开始体验</p>
             <h1>一种 IR，多种来源与后端</h1>
             <p class="intro">导入图纸后，解析器会把它转换为统一的 path、text、hatch 和 ref 指令。</p>
-            <input id="file-input" type="file" accept=".dxf,.vsdx,.fig,.drawio,.dio,.xml,.svg,.png" hidden />
+            <input id="file-input" type="file" accept=".dxf,.vsdx,.fig,.sketch,.drawio,.dio,.xml,.svg,.svgz,.png" hidden />
             <button id="open-file" class="button primary" type="button">打开 DXF / VSDX / draw.io / Figma</button>
             <button id="load-sample" class="button secondary" type="button">加载内置示例</button>
           </section>
@@ -58,6 +58,7 @@
               <div class="backend-switch" aria-label="渲染后端">
                 <button id="backend-canvas" class="active" type="button">Canvas</button>
                 <button id="backend-svg" type="button">SVG</button>
+                <button id="backend-html" type="button">HTML</button>
                 <button id="backend-meta2d" type="button">meta2d</button>
               </div>
               <span class="separator"></span>
@@ -71,6 +72,7 @@
           <div id="drop-zone" class="canvas-shell">
             <canvas id="canvas"></canvas>
             <div id="svg-host" class="svg-host" hidden></div>
+            <div id="html-host" class="svg-host html-host" hidden></div>
             <div id="meta2d-host" class="meta2d-host" hidden></div>
             <div id="backend-badge" class="canvas-badge">CANVAS 2D</div>
             <div id="drop-message" class="drop-message">释放文件以打开图纸</div>

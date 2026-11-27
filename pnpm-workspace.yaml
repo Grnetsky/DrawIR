@@ -3,4 +3,4 @@ packages:
   - packages/parser/*
   - packages/render/*
 minimumReleaseAgeExclude:
-  - '@meta2d/core@1.1.35'
+  - '@meta2d/core@1.1.36'

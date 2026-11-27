@@ -1,28 +1,17 @@
-import { DrawioToIR } from './parser';
-import type { DrawioDocument, DrawioParseOptions } from './types';
-
-export type { DrawioDocument, DrawioParseOptions, DrawioParseStats, DrawioPageInfo } from './types';
-export { DrawioToIR } from './parser';
-export { readPages as readDrawioPages, decompress as decompressDrawioDiagram } from './decode';
-export type { DrawioPageSource } from './decode';
-
-async function toData(input: string | ArrayBuffer | Uint8Array | Blob): Promise<string | Uint8Array> {
-  if (typeof input === 'string' || input instanceof Uint8Array) return input;
-  if (input instanceof ArrayBuffer) return new Uint8Array(input);
-  return new Uint8Array(await (input as Blob).arrayBuffer());
-}
-
 /**
- * 解析 draw.io 文件：`.drawio` / `.xml`（含压缩 diagram）、`.drawio.svg`、`.drawio.png`，
- * 或直接的 `<mxGraphModel>` 文本。
+ * DrawIR 入口（只此文件为 DrawIR 独有）。src 下其余文件与 ../../../meta2d-drawio/src 逐字同步（仅 @meta2d/drawir → @drawir/core），
+ * 同一套解析逻辑：meta2d-drawio 输出 meta2d 图元（v1 / v2 适配层），这里输出 DrawIR 的 VectorDocument。
  */
-export async function parseDrawio(
-  input: string | ArrayBuffer | Uint8Array | Blob,
-  options: DrawioParseOptions = {},
-): Promise<DrawioDocument> {
-  return new DrawioToIR(options).convert(await toData(input));
-}
-
-export function parseDrawioSync(data: string | Uint8Array, options: DrawioParseOptions = {}): DrawioDocument {
-  return new DrawioToIR(options).convert(data);
-}
+export type { DrawioParseOptions, DrawioParseStats, DrawioPageInfo, DrawioVectorDocument, DrawioVectorDocument as DrawioDocument } from './types';
+export type { DrawioUnit, DrawioLeaf, DrawioGroup, DrawioLabel, DrawioEdge, DrawioArrow, DrawioTextStyle, DrawioTree } from './ir';
+export { DrawioToIR } from './ir';
+export { readPages as readDrawioPageSources, decompress as decompressDrawioDiagram, type DrawioPageSource } from './decode';
+export {
+  parseDrawioVector as parseDrawio,
+  parseDrawioVectorSync as parseDrawioSync,
+  readDrawioPages,
+  readDrawioImages,
+  type DrawioInput,
+  type DrawioPageMeta,
+  type DrawioImage,
+} from './common';

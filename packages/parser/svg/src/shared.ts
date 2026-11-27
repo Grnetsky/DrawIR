@@ -1,0 +1,13 @@
+export type { SvgDocument, SvgParseOptions, SvgParseStats, SvgPageInfo, SvgPenInfo, SvgVectorDocument } from './types';
+export type { SvgPenAdapter, ImageSpec } from './parser';
+export type { TextSpec } from './text';
+export type { RelGradient } from './gradient';
+export type { SvgUnit, SvgLeaf, SvgGroup, SvgTree, PenGradient } from './ir';
+export type { XmlElement, XmlNode, XmlText } from './xml';
+export { SvgConverter } from './parser';
+export { SvgToIR, parseSvgRoot, unitItems } from './ir';
+export { parseXml } from './xml';
+export { parsePath, type Seg } from './path';
+export { parseColor } from './color';
+export { parseSvgVector, parseSvgVectorSync, readSvgImages, readSvgInfo, toBytes, type SvgInput, type SvgImage, type SvgInfo } from './common';
+export { contentBox, penRectOfGeom, MIN_PEN_SIZE, type Meta2dPensDocument } from './util';

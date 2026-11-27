@@ -17,7 +17,7 @@ const NAMED: Record<string, Style> = {
     verticalAlign: 'middle',
     fontSize: '11',
   },
-  label: { fontStyle: '1', align: 'left', verticalAlign: 'middle', spacing: '2', spacingLeft: '52' },
+  label: { fontStyle: '1', align: 'left', verticalAlign: 'middle', spacing: '2', spacingLeft: '52', imageWidth: '42', imageHeight: '42' },
   icon: { shape: 'label', align: 'center', verticalAlign: 'top', verticalLabelPosition: 'bottom' },
   swimlane: { shape: 'swimlane', fontSize: '12', fontStyle: '1', startSize: '23' },
   group: { verticalAlign: 'top', fillColor: 'none', strokeColor: 'none', gradientColor: 'none' },

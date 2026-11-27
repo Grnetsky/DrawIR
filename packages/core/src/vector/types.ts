@@ -44,9 +44,45 @@ export type VectorFillRule = 'nonzero' | 'evenodd';
 export type VectorTextAlign = 'left' | 'right' | 'center' | 'start' | 'end';
 export type VectorTextBaseline = 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom';
 
+/** 渐变色标 */
+export interface VectorGradientStop {
+  /** 位置 0~1 */
+  o: number;
+  /** CSS 颜色（不支持 '$fg' / '$bg'） */
+  c: string;
+}
+
+/**
+ * 渐变，参数语义同 Canvas：
+ * - `linear`：createLinearGradient(x0, y0, x1, y1)
+ * - `radial`：createRadialGradient(x0, y0, r0, x1, y1, r1)
+ *
+ * 坐标在「渐变空间」中，m 把渐变空间映射到局部坐标（缺省为单位矩阵，即直接用局部坐标）。
+ * 借助 m 可以表达任意仿射变换后的渐变：椭圆形径向渐变、斜切后的线性渐变（等值线不再垂直于渐变方向）。
+ * 几何经矩阵变换时（transformItem、块引用）只需左乘到 m，渐变随几何一起变换。
+ */
+export interface VectorGradient {
+  type: 'linear' | 'radial';
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  /** 径向渐变的内、外圆半径（渐变空间） */
+  r0?: number;
+  r1?: number;
+  /** 渐变空间 → 局部坐标 */
+  m?: VectorMatrix;
+  stops: VectorGradientStop[];
+}
+
+/** 填充 / 描边：颜色或渐变 */
+export type VectorPaint = VectorColor | VectorGradient;
+
 export interface VectorStyle {
-  stroke?: VectorColor;
-  fill?: VectorColor;
+  /** 描边：颜色或渐变 */
+  stroke?: VectorPaint;
+  /** 填充：颜色或渐变 */
+  fill?: VectorPaint;
   /** 局部单位线宽；'$lw' 由文档或渲染调用方的 lineWidth 决定。 */
   lw?: number | '$lw';
   /** 与缩放无关的显示线宽，具体像素语义由后端实现。 */
@@ -130,7 +166,44 @@ export interface VectorRefItem {
   c?: VectorColor;
 }
 
-export type VectorItem = VectorPathItem | VectorTextItem | VectorHatchItem | VectorRefItem;
+/**
+ * 图片：把图片画进单位正方形 (0,0)-(1,1)，再经 m 变换到局部坐标（旋转、斜切、镜像都在 m 里）。
+ * 图片加载是异步的，由渲染后端缓存，加载完成后重绘
+ */
+export interface VectorImageItem {
+  t: 'i';
+  /** 图片地址：URL、data URL 或 blob URL */
+  src: string;
+  /** 单位正方形 → 局部坐标 */
+  m: VectorMatrix;
+  /** 不透明度 0~1，缺省 1 */
+  alpha?: number;
+  /** 圆角半径（局部坐标单位） */
+  radius?: number;
+  /**
+   * 图片在框内的适配方式：
+   * - `'fill'`（缺省）：拉伸填满
+   * - `'contain'`：等比缩放、完整显示、居中
+   * - `'cover'`：等比缩放、铺满、居中裁剪
+   */
+  fit?: 'fill' | 'contain' | 'cover';
+}
+
+/**
+ * 裁剪：items 只在裁剪路径 d 内可见（Canvas clip），可嵌套。
+ * 用于设计稿的蒙版（mask）、容器的内容裁剪（clip content）等
+ */
+export interface VectorClipItem {
+  t: 'c';
+  /** 裁剪路径（局部坐标），多个闭合环 */
+  d: VectorPathData;
+  /** 裁剪路径的填充规则，缺省 nonzero */
+  rule?: VectorFillRule;
+  /** 被裁剪的内容（同一局部坐标） */
+  items: VectorItem[];
+}
+
+export type VectorItem = VectorPathItem | VectorTextItem | VectorHatchItem | VectorRefItem | VectorImageItem | VectorClipItem;
 
 /** 轴对齐矩形（即 @drawir/core 的 Box） */
 export type VectorBox = Box;

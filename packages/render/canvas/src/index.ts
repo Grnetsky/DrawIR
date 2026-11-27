@@ -4,7 +4,8 @@ import { drawVectorGeom } from './vector';
 import type { CanvasContext, CanvasRendererOptions, CanvasSize, CanvasTarget } from './types';
 
 export type { CanvasContext, CanvasRendererOptions, CanvasSize, CanvasTarget } from './types';
-export { drawVectorGeom, traceVectorPath } from './vector';
+export { drawVectorGeom, getVectorImage, traceVectorPath } from './vector';
+export type { VectorDrawOptions, VectorImageSource } from './vector';
 
 export function fitViewport(document: VectorDocument, width: number, height: number, padding = 20): Viewport {
   const content = document.width && document.height
@@ -27,6 +28,9 @@ export class CanvasRenderer implements Renderer<CanvasRendererOptions> {
   private canvas?: CanvasTarget;
   private defaults: CanvasRendererOptions;
   private size?: { width: number; height: number };
+  /** 最近一次绘制：图片加载完成后用它重绘 */
+  private last?: { document: VectorDocument; options: CanvasRendererOptions };
+  private redrawTimer?: ReturnType<typeof setTimeout>;
 
   constructor(target: CanvasTarget | CanvasContext, options: CanvasRendererOptions = {}) {
     if ('getContext' in target) {
@@ -54,7 +58,17 @@ export class CanvasRenderer implements Renderer<CanvasRendererOptions> {
     return { width, height, pixelRatio: ratio };
   }
 
+  /** 图片加载完成后重绘最近一次的内容（多张图片合并为一次） */
+  private scheduleRedraw = () => {
+    if (this.redrawTimer) return;
+    this.redrawTimer = setTimeout(() => {
+      this.redrawTimer = undefined;
+      this.last && this.render(this.last.document, this.last.options);
+    }, 16);
+  };
+
   render(document: VectorDocument, renderOptions: CanvasRendererOptions = {}) {
+    this.last = { document, options: renderOptions };
     const options = { ...this.defaults, ...renderOptions };
     const size = this.resolveSize(options);
     const ctx = this.ctx;
@@ -97,6 +111,7 @@ export class CanvasRenderer implements Renderer<CanvasRendererOptions> {
         lineDash: options.lineDash ?? document.lineDash,
         viewportScale: viewport.scale,
         pixelRatio: size.pixelRatio,
+        onImageLoad: this.scheduleRedraw,
       });
     } finally {
       ctx.restore();

@@ -1,6 +1,6 @@
 # DrawIR
 
-DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、Visio、draw.io、Figma 解析器只生成矢量数据，Canvas 等后端各自实现渲染接口；核心库不包含编辑器、Pen、原生图形或 DOM 对象。
+DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、Visio、draw.io、Figma、Sketch、SVG 解析器只生成矢量数据，Canvas 等后端各自实现渲染接口；核心库不包含编辑器、Pen、原生图形或 DOM 对象。
 
 ## 文档
 
@@ -17,10 +17,16 @@ DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、
 - `@drawir/parser-visio`（`packages/parser/visio`）：VSDX → Vector IR。
 - `@drawir/parser-drawio`（`packages/parser/drawio`）：draw.io（diagrams.net）→ Vector IR。
 - `@drawir/parser-figma`（`packages/parser/figma`）：Figma `.fig` → Vector IR。
+- `@drawir/parser-sketch`（`packages/parser/sketch`）：Sketch `.sketch` → Vector IR。
+- `@drawir/parser-svg`（`packages/parser/svg`）：SVG / SVGZ → Vector IR。
+
+> 解析器源码与 meta2d 的 `@meta2d/dxf`、`@meta2d/vsdx`、`@meta2d/figma`、`@meta2d/drawio`、`@meta2d/sketch`、`@meta2d/svg` 逐字同步（仅 `@meta2d/drawir` ↔ `@drawir/core`），
+> 只有各包的 `src/index.ts` 不同：meta2d 侧输出 meta2d 图元，这里的 `parseXxx` / `parseXxxSync` 输出 `VectorDocument`。修改任意一侧都必须同步另一侧（见 le5le-ai-extensions 的 `drawir-sync` skill）。
 - `@drawir/render-core`（`packages/render/core`）：平台无关的 `Renderer` 接口与后端注册表。
 - `@drawir/render-canvas`（`packages/render/canvas`）：HTML Canvas / OffscreenCanvas 的矢量指令解释器。
-- `@drawir/render-svg`（`packages/render/svg`）：SVG 字符串导出与页面渲染，支持 path/text/hatch/ref。
-- `@drawir/render-meta2d`（`packages/render/meta2d`）：meta2d.js 1.x 后端，IR → 可交互的 `vector` 图元（需 `@meta2d/core` ≥ 1.1.35）。
+- `@drawir/render-svg`（`packages/render/svg`）：SVG 字符串导出与页面渲染，支持全部 IR 项（含渐变、图片、裁剪）。
+- `@drawir/render-html`（`packages/render/html`）：HTML（DOM）渲染：文字为可选中的 HTML 文字，图片为 `<img>`，几何为内联 SVG。
+- `@drawir/render-meta2d`（`packages/render/meta2d`）：meta2d.js 1.x 后端，IR → 可交互的 `vector` 图元（需 `@meta2d/core` ≥ 1.1.36）。
 
 根包 `drawir` 统一导出以上 API，也可以只使用子包。
 
@@ -40,12 +46,14 @@ interface VectorDocument extends VectorGeom {
 }
 ```
 
-`items` 只有四种：
+`items` 有六种：
 
-- `t: 'p'`：路径，支持 move、line、二次/三次贝塞尔、close、ellipse。
+- `t: 'p'`：路径，支持 move、line、二次/三次贝塞尔、close、ellipse；填充 / 描边可以是颜色或线性 / 径向渐变。
 - `t: 't'`：文字，包含锚点、字高、旋转、对齐和字体信息。
 - `t: 'h'`：边界裁剪的图案填充。
 - `t: 'r'`：通过 id 和仿射矩阵引用 `vectors` 中的共享几何。
+- `t: 'i'`：图片（单位正方形经矩阵映射，支持 fill / contain / cover、圆角、透明度）。
+- `t: 'c'`：裁剪（蒙版），子项只在裁剪路径内可见。
 
 颜色 `'$fg'`、`'$bg'` 和线宽 `'$lw'` 由后端根据文档或渲染参数解析。所有数据都可直接 JSON 序列化，也可跨 Worker 传输。
 
@@ -62,13 +70,23 @@ pnpm build
 pnpm dev
 ```
 
-打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX / draw.io / Figma 文件、Canvas / SVG / meta2d 后端切换，以及缩放、平移和适应画布。
+打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX / draw.io / Figma / Sketch / SVG 文件、Canvas / SVG / HTML / meta2d 后端切换，以及缩放、平移和适应画布。
 
 ```bash
 pnpm demo:build
 ```
 
 生产文件输出到 `demo/dist`。
+
+## 任意格式 → HTML
+
+```ts
+import { parseSvg, HtmlRenderer } from 'drawir';
+
+const html = new HtmlRenderer(document.querySelector('#host')!);
+html.render(await parseSvg(file), { fit: true, width: 800, height: 600 });
+// 也可在 Node / Worker 中得到字符串：renderHtml(doc, { fit: true })
+```
 
 ## DXF → Canvas
 
@@ -128,7 +146,7 @@ const exact = await parseFigma(figFile, { text: 'path' });
 ## 渲染到 meta2d 1.x
 
 ```ts
-import { Meta2d } from '@meta2d/core'; // ≥ 1.1.35，内置 vector 图元
+import { Meta2d } from '@meta2d/core'; // ≥ 1.1.36，内置 vector 图元
 import { Meta2dRenderer, toMeta2dData, parseDxf } from 'drawir';
 
 const renderer = new Meta2dRenderer(new Meta2d('app'));
