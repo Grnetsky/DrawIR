@@ -1,0 +1,17 @@
+/**
+ * DrawIR 入口（只此文件为 DrawIR 独有）。src 下其余文件与 ../../../meta2d-sym/src 逐字同步（仅 @meta2d/drawir → @drawir/core），
+ * 同一套解析逻辑：meta2d-sym 输出 meta2d 图元（v1 / v2 适配层），这里输出 DrawIR 的 VectorDocument。
+ */
+export type * from './types';
+export type { SymVectorDocument as SymIRDocument } from './types';
+export type { SymUnit, SymLeaf, SymGroup, SymTree } from './ir';
+export { SymToIR, MM_TO_PX } from './ir';
+export { decodeSym, SYM_VERSION } from './decode';
+export { symColor } from './util';
+export {
+  parseSymVector as parseSym,
+  parseSymVectorSync as parseSymSync,
+  readSymSymbols,
+  readSymSymbolsSync,
+  type SymInput,
+} from './common';

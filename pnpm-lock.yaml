@@ -20,12 +20,21 @@ importers:
       '@drawir/parser-figma':
         specifier: workspace:*
         version: link:packages/parser/figma
+      '@drawir/parser-gencad':
+        specifier: workspace:*
+        version: link:packages/parser/gencad
+      '@drawir/parser-mermaid':
+        specifier: workspace:*
+        version: link:packages/parser/mermaid
       '@drawir/parser-sketch':
         specifier: workspace:*
         version: link:packages/parser/sketch
       '@drawir/parser-svg':
         specifier: workspace:*
         version: link:packages/parser/svg
+      '@drawir/parser-sym':
+        specifier: workspace:*
+        version: link:packages/parser/sym
       '@drawir/parser-visio':
         specifier: workspace:*
         version: link:packages/parser/visio
@@ -87,6 +96,18 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
 
+  packages/parser/gencad:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+
+  packages/parser/mermaid:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
+
   packages/parser/sketch:
     dependencies:
       '@drawir/core':
@@ -104,6 +125,12 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+
+  packages/parser/sym:
+    dependencies:
+      '@drawir/core':
+        specifier: workspace:*
+        version: link:../../core
 
   packages/parser/visio:
     dependencies:

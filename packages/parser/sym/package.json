@@ -1,0 +1,11 @@
+{
+  "name": "@drawir/parser-sym",
+  "version": "1.0.0",
+  "description": "EPGIS SYM (.sym) symbol library parser for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*"
+  }
+}

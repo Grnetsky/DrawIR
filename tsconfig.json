@@ -31,6 +31,15 @@
       "path": "packages/parser/svg"
     },
     {
+      "path": "packages/parser/sym"
+    },
+    {
+      "path": "packages/parser/gencad"
+    },
+    {
+      "path": "packages/parser/mermaid"
+    },
+    {
       "path": "packages/render/core"
     },
     {

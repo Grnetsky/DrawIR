@@ -1,23 +1,26 @@
 {
   "name": "drawir",
   "version": "1.0.0",
-  "description": "Vector intermediate representation (DXF / Visio / Figma / draw.io / Sketch / SVG) and pluggable renderers (canvas / svg / html / meta2d)",
+  "description": "Vector intermediate representation (DXF / Visio / Figma / draw.io / Sketch / SVG / SYM / GenCAD / Mermaid) and pluggable renderers (canvas / svg / html / meta2d)",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d && tsc -p tsconfig.json",
+    "build": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/parser/sym packages/parser/gencad packages/parser/mermaid packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d && tsc -p tsconfig.json",
     "dev": "vite demo --host 0.0.0.0",
     "demo:build": "vite build demo",
-    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean": "tsc -b packages/core packages/parser/dxf packages/parser/visio packages/parser/drawio packages/parser/figma packages/parser/sketch packages/parser/svg packages/parser/sym packages/parser/gencad packages/parser/mermaid packages/render/core packages/render/canvas packages/render/svg packages/render/html packages/render/meta2d --clean && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@drawir/core": "workspace:*",
     "@drawir/parser-drawio": "workspace:*",
     "@drawir/parser-dxf": "workspace:*",
     "@drawir/parser-figma": "workspace:*",
+    "@drawir/parser-gencad": "workspace:*",
+    "@drawir/parser-mermaid": "workspace:*",
     "@drawir/parser-sketch": "workspace:*",
     "@drawir/parser-svg": "workspace:*",
+    "@drawir/parser-sym": "workspace:*",
     "@drawir/parser-visio": "workspace:*",
     "@drawir/render-canvas": "workspace:*",
     "@drawir/render-core": "workspace:*",

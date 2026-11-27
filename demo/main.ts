@@ -10,6 +10,9 @@ import {
   parseFigma,
   parseSketch,
   parseSvg,
+  parseSym,
+  parseGenCAD,
+  parseMermaid,
   parseVisio,
   pathItem,
   Meta2dRenderer,
@@ -184,6 +187,15 @@ async function openFile(file: File) {
     } else if (extension === 'fig') {
       currentDocument = await parseFigma(bytes, { pageBorder: true });
       updateInfo('Figma', file.name);
+    } else if (extension === 'sym') {
+      currentDocument = await parseSym(bytes);
+      updateInfo('EPGIS SYM', file.name);
+    } else if (extension === 'cad') {
+      currentDocument = await parseGenCAD(bytes);
+      updateInfo('GenCAD', file.name);
+    } else if (extension === 'mmd' || extension === 'mermaid') {
+      currentDocument = await parseMermaid(bytes);
+      updateInfo('Mermaid', file.name);
     } else if (extension === 'sketch') {
       currentDocument = await parseSketch(bytes);
       updateInfo('Sketch', file.name);
@@ -194,7 +206,7 @@ async function openFile(file: File) {
       currentDocument = await parseDrawio(bytes, { pageBorder: true });
       updateInfo('draw.io', file.name);
     } else {
-      throw new Error('请选择 .dxf、.vsdx、.drawio、.fig、.sketch 或 .svg 文件');
+      throw new Error('请选择 .dxf、.vsdx、.drawio、.fig、.sketch、.svg、.sym、.cad 或 .mmd 文件');
     }
     const errors = currentDocument.stats?.errors?.length || 0;
     status.textContent = errors ? `已打开，${errors} 条内容未能解析` : '解析完成';

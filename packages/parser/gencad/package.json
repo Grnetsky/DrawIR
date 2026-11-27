@@ -1,0 +1,11 @@
+{
+  "name": "@drawir/parser-gencad",
+  "version": "1.0.0",
+  "description": "GenCAD 1.4 PCB (.cad) parser for DrawIR",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@drawir/core": "workspace:*"
+  }
+}
