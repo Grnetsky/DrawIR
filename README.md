@@ -1,6 +1,6 @@
 # DrawIR
 
-DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、Visio、draw.io、Figma、Sketch、SVG 解析器只生成矢量数据，Canvas 等后端各自实现渲染接口；核心库不包含编辑器、Pen、原生图形或 DOM 对象。
+DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、Visio、draw.io、Figma、Sketch、SVG、EPGIS SYM、GenCAD、Mermaid 解析器只生成矢量数据，Canvas 等后端各自实现渲染接口；核心库不包含编辑器、Pen、原生图形或 DOM 对象。
 
 ## 文档
 
@@ -19,14 +19,9 @@ DrawIR 是平台无关的矢量绘图中间描述语言（IR）monorepo。CAD、
 - `@drawir/parser-figma`（`packages/parser/figma`）：Figma `.fig` → Vector IR。
 - `@drawir/parser-sketch`（`packages/parser/sketch`）：Sketch `.sketch` → Vector IR。
 - `@drawir/parser-svg`（`packages/parser/svg`）：SVG / SVGZ → Vector IR。
-
-> 解析器源码与 meta2d 的 `@meta2d/dxf`、`@meta2d/vsdx`、`@meta2d/figma`、`@meta2d/drawio`、`@meta2d/sketch`、`@meta2d/svg` 逐字同步（仅 `@meta2d/drawir` ↔ `@drawir/core`），
-> 只有各包的 `src/index.ts` 不同：meta2d 侧输出 meta2d 图元，这里的 `parseXxx` / `parseXxxSync` 输出 `VectorDocument`。修改任意一侧都必须同步另一侧（见 le5le-ai-extensions 的 `drawir-sync` skill）。
-- `@drawir/render-core`（`packages/render/core`）：平台无关的 `Renderer` 接口与后端注册表。
-- `@drawir/render-canvas`（`packages/render/canvas`）：HTML Canvas / OffscreenCanvas 的矢量指令解释器。
-- `@drawir/render-svg`（`packages/render/svg`）：SVG 字符串导出与页面渲染，支持全部 IR 项（含渐变、图片、裁剪）。
-- `@drawir/render-html`（`packages/render/html`）：HTML（DOM）渲染：文字为可选中的 HTML 文字，图片为 `<img>`，几何为内联 SVG。
-- `@drawir/render-meta2d`（`packages/render/meta2d`）：meta2d.js 1.x 后端，IR → 可交互的 `vector` 图元（需 `@meta2d/core` ≥ 1.1.36）。
+- `@drawir/parser-sym`（`packages/parser/sym`）：EPGIS `EP Version 1.0` 符号库 `.sym` → Vector IR。
+- `@drawir/parser-gencad`（`packages/parser/gencad`）：GenCAD 1.4 PCB `.cad` → Vector IR。
+- `@drawir/parser-mermaid`（`packages/parser/mermaid`）：Mermaid（flowchart / sequenceDiagram，内置布局）→ Vector IR。
 
 根包 `drawir` 统一导出以上 API，也可以只使用子包。
 
@@ -70,7 +65,7 @@ pnpm build
 pnpm dev
 ```
 
-打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX / draw.io / Figma / Sketch / SVG 文件、Canvas / SVG / HTML / meta2d 后端切换，以及缩放、平移和适应画布。
+打开终端显示的本地地址。Demo 默认加载内置 Vector IR 示例，支持打开或拖放 DXF / VSDX / draw.io / Figma / Sketch / SVG / SYM / GenCAD / Mermaid（.mmd）文件、Canvas / SVG / HTML / meta2d 后端切换，以及缩放、平移和适应画布。
 
 ```bash
 pnpm demo:build
@@ -142,29 +137,6 @@ const exact = await parseFigma(figFile, { text: 'path' });
 ```
 
 读取 Figma「另存为本地副本」得到的 `.fig`（ZIP 包或裸 `fig-kiwi` 格式）。kiwi schema 从文件中读取，不硬编码字段表。几何直接使用文件缓存的 `fillGeometry` / `strokeGeometry`（描边已展开为轮廓），组件实例按覆盖、派生布局和组件属性（可见性、文字、实例替换）展开，文字按 Figma 排版结果逐行、逐样式段定位。IR 不支持的特性按如下方式降级并计入 `doc.stats`：图片填充跳过（`images`），渐变取色标平均色，特殊混合模式层跳过，阴影 / 模糊忽略，frame 裁剪与遮罩不生效（`clipContent`、`mask`）。
-
-## 渲染到 meta2d 1.x
-
-```ts
-import { Meta2d } from '@meta2d/core'; // ≥ 1.1.36，内置 vector 图元
-import { Meta2dRenderer, toMeta2dData, parseDxf } from 'drawir';
-
-const renderer = new Meta2dRenderer(new Meta2d('app'));
-await renderer.render(await parseDxf(file), { fit: true });          // 作为新图纸打开
-await renderer.render(doc2, { mode: 'append', origin: { x: 0, y: 800 } }); // 追加，可撤销
-
-// 只转换数据（不依赖 DOM / meta2d，可在 Worker 中运行）
-const { pens, vectors } = toMeta2dData(doc, { granularity: 'item' });
-meta2d.open({ pens, vectors });
-```
-
-meta2d 1.x 的 `vector` 图元直接解释同一套 IR：`pen.vector = { bbox, items }`，共享几何放在 `data.vectors`，`meta2d.data()` 保存时自动带上用到的定义。
-
-- 颜色语义：`$fg` 取图元描边色，跟随 `pen.color`、悬停/选中色和 meta2d 主题；`$bg` 对应 `pen.background`；`$lw` 和最细线宽对应 `pen.lineWidth`；`tint` 对应 `pen.vectorTint`。
-- `granularity: 'item'`（缺省）：每个顶层绘制项一个图元，可单独选中和编辑；超过 `maxPens`（缺省 20000）时自动改为 `'document'`，整份文档一个图元。
-- `editable`（缺省 true）：文字转为原生文字图元，双击即可修改；单路径的固定颜色和线宽提升为图元属性，在属性面板中修改即可生效。
-- 共享几何 id 缺省加随机命名空间，多次追加时不会互相覆盖。
-- meta2d 会把容器改成 `position: relative`。如果容器原本是绝对定位，请在内部再放一个宽高 100% 的 div 交给 `new Meta2d()`。
 
 ## 手工创建 IR
 
